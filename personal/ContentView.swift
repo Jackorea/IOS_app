@@ -16,17 +16,16 @@ struct BluetoothDevice: Identifiable {
 }
 
 class BluetoothViewModel: NSObject, ObservableObject {
-    private var centralManager: CBCentralManager
-    
+    private var centralManager: CBCentralManager!
     @Published var devices: [BluetoothDevice] = []
     @Published var isScanning = false
+    @Published var connectedPeripheral: CBPeripheral? = nil
     @Published var showBluetoothOffAlert = false
+    @Published var connectionStatus: String = "Not Connected"
 
     override init() {
-        // ✅ 즉시 초기화
-        self.centralManager = CBCentralManager(delegate: nil, queue: .main)
         super.init()
-        self.centralManager.delegate = self
+        centralManager = CBCentralManager(delegate: self, queue: .main)
     }
 
     func startScan() {
@@ -35,8 +34,6 @@ class BluetoothViewModel: NSObject, ObservableObject {
             showBluetoothOffAlert = true
             return
         }
-
-        // ✅ 스캔 중이어도 재시작 가능하게 처리
         centralManager.stopScan()
         devices.removeAll()
         centralManager.scanForPeripherals(withServices: nil)
@@ -48,15 +45,26 @@ class BluetoothViewModel: NSObject, ObservableObject {
         isScanning = false
     }
 
+    func connectToDevice(_ device: BluetoothDevice) {
+        centralManager.connect(device.peripheral, options: nil)
+        connectionStatus = "Connecting to \(device.name)..."
+    }
+    
+    func disconnect() {
+        guard let connected = connectedPeripheral else { return }
+        centralManager.cancelPeripheralConnection(connected)
+        connectionStatus = "Disconnecting..."
+    }
 }
+
 
 extension BluetoothViewModel: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            print("Bluetooth is ready")
+            print("Bluetooth is powered on")
         case .poweredOff:
-            print("Bluetooth is off")
+            print("Bluetooth is powered off")
             isScanning = false
         default:
             isScanning = false
@@ -70,14 +78,29 @@ extension BluetoothViewModel: CBCentralManagerDelegate {
         let name = peripheral.name ?? ""
         guard name.hasPrefix("LXB-") else { return }
 
-        // 기존에 없을 때만 추가
         if !devices.contains(where: { $0.peripheral.identifier == peripheral.identifier }) {
             let device = BluetoothDevice(peripheral: peripheral, name: name)
             devices.append(device)
         }
     }
-}
 
+    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        connectedPeripheral = peripheral
+        connectionStatus = "Connected to \(peripheral.name ?? "Device")"
+        print("✅ Connected to \(peripheral.name ?? "unknown device")")
+    }
+
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        connectionStatus = "❌ Failed to connect"
+    }
+
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        connectionStatus = "Disconnected"
+        if connectedPeripheral == peripheral {
+            connectedPeripheral = nil
+        }
+    }
+}
 
 struct ContentView: View {
     @ObservedObject private var bluetoothViewModel = BluetoothViewModel()
@@ -102,11 +125,39 @@ struct ContentView: View {
                     .foregroundColor(.white)
                     .cornerRadius(8)
                 }
+                
+                if bluetoothViewModel.connectedPeripheral != nil {
+                    Button("Disconnect") {
+                        bluetoothViewModel.disconnect()
+                    }
+                    .padding()
+                    .background(Color.orange)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                } else {
+                    Button("Disconnect") { }
+                        .padding()
+                        .background(Color.gray)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                        .disabled(true)
+                }
 
                 Text(bluetoothViewModel.isScanning ? "Scanning..." : "Not Scanning")
+                Text("🔌 \(bluetoothViewModel.connectionStatus)")
 
                 List(bluetoothViewModel.devices) { device in
-                    Text(device.name)
+                    HStack {
+                        Text(device.name)
+                        Spacer()
+                        Button("Connect") {
+                            bluetoothViewModel.connectToDevice(device)
+                        }
+                        .padding(6)
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(6)
+                    }
                 }
 
                 Spacer()
@@ -114,14 +165,15 @@ struct ContentView: View {
             .padding()
             .navigationTitle("Bluetooth Devices")
             .alert(isPresented: $bluetoothViewModel.showBluetoothOffAlert) {
-                Alert(title: Text("Bluetooth is turned off"),
-                      message: Text("Please turn on Bluetooth to scan for devices."),
-                      dismissButton: .default(Text("Close")))
+                Alert(
+                    title: Text("Bluetooth is turned off"),
+                    message: Text("Please turn on Bluetooth to scan and connect."),
+                    dismissButton: .default(Text("Close"))
+                )
             }
         }
     }
 }
-
 
 
 #Preview {
