@@ -13,59 +13,53 @@ struct BluetoothDevice: Identifiable {
     let id: UUID = UUID()
     let peripheral: CBPeripheral
     let name: String
-    var lastSeen: Date
 }
 
 class BluetoothViewModel: NSObject, ObservableObject {
-    private var centralManager: CBCentralManager!
-    private var scanTimer: Timer?
-
-    // ✅ 기존 peripheral 배열 제거하고 새로운 모델 배열 사용
+    private var centralManager: CBCentralManager
+    
     @Published var devices: [BluetoothDevice] = []
     @Published var isScanning = false
     @Published var showBluetoothOffAlert = false
 
     override init() {
+        // ✅ 즉시 초기화
+        self.centralManager = CBCentralManager(delegate: nil, queue: .main)
         super.init()
-        centralManager = CBCentralManager(delegate: self, queue: .main)
-        startExpirationTimer() // ✅ 디바이스 사라짐 감지를 위한 타이머 시작
+        self.centralManager.delegate = self
     }
 
     func startScan() {
-        if centralManager.state == .poweredOn && !isScanning {
-            devices.removeAll()
-            centralManager.scanForPeripherals(withServices: nil)
-            isScanning = true
-        } else if centralManager.state != .poweredOn {
+        guard centralManager.state == .poweredOn else {
             isScanning = false
             showBluetoothOffAlert = true
+            return
         }
+
+        // ✅ 스캔 중이어도 재시작 가능하게 처리
+        centralManager.stopScan()
+        devices.removeAll()
+        centralManager.scanForPeripherals(withServices: nil)
+        isScanning = true
     }
 
     func stopScan() {
-        if isScanning {
-            centralManager.stopScan()
-            isScanning = false
-        }
+        centralManager.stopScan()
+        isScanning = false
     }
 
-    // ✅ 주기적으로 lastSeen 오래된 디바이스 제거
-    private func startExpirationTimer() {
-        scanTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-            let now = Date()
-            self.devices.removeAll { now.timeIntervalSince($0.lastSeen) > 5.0 }
-        }
-    }
 }
-
 
 extension BluetoothViewModel: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        if central.state == .poweredOn {
+        switch central.state {
+        case .poweredOn:
             print("Bluetooth is ready")
-        } else {
-            print("Bluetooth not available")
-            isScanning = false // ✅ 블루투스 꺼지면 상태 초기화
+        case .poweredOff:
+            print("Bluetooth is off")
+            isScanning = false
+        default:
+            isScanning = false
         }
     }
 
@@ -73,22 +67,17 @@ extension BluetoothViewModel: CBCentralManagerDelegate {
                         didDiscover peripheral: CBPeripheral,
                         advertisementData: [String : Any],
                         rssi RSSI: NSNumber) {
-        
         let name = peripheral.name ?? ""
-        
-        // ✅ "LXB-"로 시작하는 이름만 처리
         guard name.hasPrefix("LXB-") else { return }
 
-        // ✅ 같은 identifier를 가진 디바이스가 이미 있다면 lastSeen만 업데이트
-        if let index = devices.firstIndex(where: { $0.peripheral.identifier == peripheral.identifier }) {
-            devices[index].lastSeen = Date()
-        } else {
-            // ✅ 새로운 디바이스 추가
-            let newDevice = BluetoothDevice(peripheral: peripheral, name: name, lastSeen: Date())
-            devices.append(newDevice)
+        // 기존에 없을 때만 추가
+        if !devices.contains(where: { $0.peripheral.identifier == peripheral.identifier }) {
+            let device = BluetoothDevice(peripheral: peripheral, name: name)
+            devices.append(device)
         }
     }
 }
+
 
 struct ContentView: View {
     @ObservedObject private var bluetoothViewModel = BluetoothViewModel()
@@ -116,7 +105,6 @@ struct ContentView: View {
 
                 Text(bluetoothViewModel.isScanning ? "Scanning..." : "Not Scanning")
 
-                // ✅ List 업데이트: peripheralNames → devices
                 List(bluetoothViewModel.devices) { device in
                     Text(device.name)
                 }
@@ -126,15 +114,14 @@ struct ContentView: View {
             .padding()
             .navigationTitle("Bluetooth Devices")
             .alert(isPresented: $bluetoothViewModel.showBluetoothOffAlert) {
-                Alert(
-                    title: Text("Bluetooth is turned off"),
-                    message: Text("Please turn on Bluetooth to scan for devices."),
-                    dismissButton: .default(Text("Close"))
-                )
+                Alert(title: Text("Bluetooth is turned off"),
+                      message: Text("Please turn on Bluetooth to scan for devices."),
+                      dismissButton: .default(Text("Close")))
             }
         }
     }
 }
+
 
 
 #Preview {
