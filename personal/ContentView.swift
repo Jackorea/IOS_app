@@ -18,26 +18,27 @@ struct BluetoothDevice: Identifiable {
 
 class BluetoothViewModel: NSObject, ObservableObject {
     private var centralManager: CBCentralManager!
-    private var peripherals: [CBPeripheral] = []
+    private var scanTimer: Timer?
 
-    @Published var peripheralNames: [String] = []
+    // ✅ 기존 peripheral 배열 제거하고 새로운 모델 배열 사용
+    @Published var devices: [BluetoothDevice] = []
     @Published var isScanning = false
-    @Published var showBluetoothOffAlert = false // ✅ alert 상태 변수
+    @Published var showBluetoothOffAlert = false
 
     override init() {
         super.init()
         centralManager = CBCentralManager(delegate: self, queue: .main)
+        startExpirationTimer() // ✅ 디바이스 사라짐 감지를 위한 타이머 시작
     }
 
     func startScan() {
         if centralManager.state == .poweredOn && !isScanning {
-            peripherals.removeAll()
-            peripheralNames.removeAll()
+            devices.removeAll()
             centralManager.scanForPeripherals(withServices: nil)
             isScanning = true
         } else if centralManager.state != .poweredOn {
             isScanning = false
-            showBluetoothOffAlert = true // ✅ 블루투스 꺼져있으면 alert 표시
+            showBluetoothOffAlert = true
         }
     }
 
@@ -45,6 +46,14 @@ class BluetoothViewModel: NSObject, ObservableObject {
         if isScanning {
             centralManager.stopScan()
             isScanning = false
+        }
+    }
+
+    // ✅ 주기적으로 lastSeen 오래된 디바이스 제거
+    private func startExpirationTimer() {
+        scanTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            let now = Date()
+            self.devices.removeAll { now.timeIntervalSince($0.lastSeen) > 5.0 }
         }
     }
 }
@@ -56,7 +65,7 @@ extension BluetoothViewModel: CBCentralManagerDelegate {
             print("Bluetooth is ready")
         } else {
             print("Bluetooth not available")
-            isScanning = false // ✅ 블루투스 꺼지면 자동으로 상태 변경
+            isScanning = false // ✅ 블루투스 꺼지면 상태 초기화
         }
     }
 
@@ -65,20 +74,21 @@ extension BluetoothViewModel: CBCentralManagerDelegate {
                         advertisementData: [String : Any],
                         rssi RSSI: NSNumber) {
         
-        // 장치 이름 가져오기 (nil일 경우 ""로 처리)
         let name = peripheral.name ?? ""
-
-        // ✅ "LXB-"로 시작하지 않으면 무시
+        
+        // ✅ "LXB-"로 시작하는 이름만 처리
         guard name.hasPrefix("LXB-") else { return }
 
-        // ✅ 중복 방지 후 추가
-        if !peripherals.contains(peripheral) {
-            peripherals.append(peripheral)
-            peripheralNames.append(name)
+        // ✅ 같은 identifier를 가진 디바이스가 이미 있다면 lastSeen만 업데이트
+        if let index = devices.firstIndex(where: { $0.peripheral.identifier == peripheral.identifier }) {
+            devices[index].lastSeen = Date()
+        } else {
+            // ✅ 새로운 디바이스 추가
+            let newDevice = BluetoothDevice(peripheral: peripheral, name: name, lastSeen: Date())
+            devices.append(newDevice)
         }
     }
 }
-
 
 struct ContentView: View {
     @ObservedObject private var bluetoothViewModel = BluetoothViewModel()
@@ -106,15 +116,15 @@ struct ContentView: View {
 
                 Text(bluetoothViewModel.isScanning ? "Scanning..." : "Not Scanning")
 
-                List(bluetoothViewModel.peripheralNames, id: \.self) { name in
-                    Text(name)
+                // ✅ List 업데이트: peripheralNames → devices
+                List(bluetoothViewModel.devices) { device in
+                    Text(device.name)
                 }
 
                 Spacer()
             }
             .padding()
             .navigationTitle("Bluetooth Devices")
-            // ✅ Alert 추가
             .alert(isPresented: $bluetoothViewModel.showBluetoothOffAlert) {
                 Alert(
                     title: Text("Bluetooth is turned off"),
@@ -125,7 +135,6 @@ struct ContentView: View {
         }
     }
 }
-
 
 
 #Preview {
