@@ -2,6 +2,18 @@ import Foundation
 import SwiftUI
 import CoreBluetooth
 
+// PPG 관련 전역 변수 및 타입 정의
+private var PPG_SAMPLE_RATE: Double = 50.0
+
+fileprivate struct FileWriter: TextOutputStream {
+    let fileHandle: FileHandle
+    mutating func write(_ string: String) {
+        if let data = string.data(using: .utf8) {
+            fileHandle.write(data)
+        }
+    }
+}
+
 public class BluetoothViewModel: NSObject, ObservableObject {
     private var centralManager: CBCentralManager!
     @Published public var devices: [BluetoothDevice] = []
@@ -11,18 +23,176 @@ public class BluetoothViewModel: NSObject, ObservableObject {
     @Published public var connectionStatus: String = "Not Connected"
     @Published public var autoReconnectEnabled: Bool = true // 오토커넥션 여부
     
+    // PPG 관련 프로퍼티
+    @Published public var isRecording: Bool = false
+    @Published public var lastPPGReading: (red: Int, ir: Int) = (0, 0)
+    @Published public var lastEEGReading: (ch1: Double, ch2: Double, leadOff: Bool) = (0, 0, false)
+    @Published public var lastAccelReading: (x: Int16, y: Int16, z: Int16) = (0, 0, 0)
+    @Published public var recordedFiles: [URL] = []
+    
     private var lastConnectedPeripheralIdentifier: UUID? // 마지막 연결된 기기 ID
     private var userInitiatedDisconnect: Bool = false // 사용자에 의한 연결 해제 여부
+    private var ppgWriter: TextOutputStream?
+    private var eegWriter: TextOutputStream?
+    private var accelWriter: TextOutputStream?
+    private var lastRecordedTimestamp: TimeInterval = 0
+    private var currentSensorData: SensorData
     
-    override public init() {
-        super.init()
-        centralManager = CBCentralManager(delegate: self, queue: .main)
+    // 센서 데이터를 임시 저장하는 구조체
+    private struct SensorData {
+        var timestamp: TimeInterval = 0
+        var ppg: (red: Int, ir: Int) = (0, 0)
+        var eeg: (ch1: Double, ch2: Double, leadOff: Bool) = (0, 0, false)
+        var accel: (x: Int16, y: Int16, z: Int16) = (0, 0, 0)
+        var isUpdated: (ppg: Bool, eeg: Bool, accel: Bool) = (false, false, false)
+        
+        mutating func reset() {
+            isUpdated = (false, false, false)
+        }
+        
+        var allUpdated: Bool {
+            return isUpdated.ppg && isUpdated.eeg && isUpdated.accel
+        }
+        
+        func toCsvString() -> String {
+            return "\(timestamp),\(ppg.red),\(ppg.ir),\(eeg.ch1),\(eeg.ch2),\(eeg.leadOff ? 1 : 0),\(accel.x),\(accel.y),\(accel.z)\n"
+        }
     }
     
-    public func handleEEGData(_ data: Data) {
-        // 예: [CH1_L, CH1_H, CH2_L, CH2_H, LeadOffFlag]
+    // 저장된 파일들의 디렉토리 URL을 반환
+    public var recordingsDirectory: URL {
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        return paths[0]  // 루트 Documents 디렉토리 반환
+    }
+    
+    override public init() {
+        currentSensorData = SensorData()
+        super.init()
+        centralManager = CBCentralManager(delegate: self, queue: .main)
+        // 초기화 시 저장된 파일 목록 로드
+        updateRecordedFiles()
+    }
+    
+    // 저장된 파일 목록 업데이트
+    private func updateRecordedFiles() {
+        recordedFiles = (try? FileManager.default.contentsOfDirectory(
+            at: recordingsDirectory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+    }
+    
+    // 데이터 기록 시작
+    public func startRecording() {
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .medium)
+            .replacingOccurrences(of: " ", with: "_")
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: "/", with: "-")
+        
+        // EEG 파일 생성
+        let eegFileURL = recordingsDirectory.appendingPathComponent("eeg_\(timestamp).csv")
+        FileManager.default.createFile(atPath: eegFileURL.path, contents: nil, attributes: nil)
+        if let handle = try? FileHandle(forWritingTo: eegFileURL) {
+            var writer = FileWriter(fileHandle: handle)
+            writer.write("timestamp,lead_off,ch1_uV,ch2_uV\n")
+            eegWriter = writer
+        }
+        
+        // PPG 파일 생성
+        let ppgFileURL = recordingsDirectory.appendingPathComponent("ppg_\(timestamp).csv")
+        FileManager.default.createFile(atPath: ppgFileURL.path, contents: nil, attributes: nil)
+        if let handle = try? FileHandle(forWritingTo: ppgFileURL) {
+            var writer = FileWriter(fileHandle: handle)
+            writer.write("timestamp,ppg_red,ppg_ir\n")
+            ppgWriter = writer
+        }
+        
+        // ACC 파일 생성
+        let accFileURL = recordingsDirectory.appendingPathComponent("acc_\(timestamp).csv")
+        FileManager.default.createFile(atPath: accFileURL.path, contents: nil, attributes: nil)
+        if let handle = try? FileHandle(forWritingTo: accFileURL) {
+            var writer = FileWriter(fileHandle: handle)
+            writer.write("timestamp,acc_x,acc_y,acc_z\n")
+            accelWriter = writer
+        }
+        
+        isRecording = true
+        currentSensorData = SensorData()
+        lastRecordedTimestamp = Date().timeIntervalSince1970
+        print("Recording started")
+    }
+    
+    public func stopRecording() {
+        isRecording = false
+        
+        // EEG 파일 닫기
+        if let handle = (eegWriter as? FileWriter)?.fileHandle {
+            try? handle.close()
+        }
+        eegWriter = nil
+        
+        // PPG 파일 닫기
+        if let handle = (ppgWriter as? FileWriter)?.fileHandle {
+            try? handle.close()
+        }
+        ppgWriter = nil
+        
+        // ACC 파일 닫기
+        if let handle = (accelWriter as? FileWriter)?.fileHandle {
+            try? handle.close()
+        }
+        accelWriter = nil
+        
+        updateRecordedFiles()
+        print("Recording stopped.")
+    }
+    
+    // 센서 데이터 업데이트 및 저장
+    private func updateAndSaveData() {
+        guard isRecording, var writer = ppgWriter else { return }
+        
+        let currentTime = Date().timeIntervalSince1970
+        // 모든 센서 데이터가 업데이트되었거나, 마지막 저장 후 일정 시간이 지났을 때 저장
+        if currentSensorData.allUpdated || (currentTime - lastRecordedTimestamp) >= 0.02 { // 50Hz로 제한
+            writer.write("\(currentTime),\(currentSensorData.ppg.red),\(currentSensorData.ppg.ir)\n")
+            lastRecordedTimestamp = currentTime
+            currentSensorData.reset()
+        }
+    }
+    
+    public func handlePPGData(_ data: Data) {
         let bytes = [UInt8](data)
+        guard bytes.count == 172 else {
+            print("PPG packet length invalid: \(bytes.count) bytes (expected 172).")
+            return
+        }
 
+        // 타임스탬프 계산
+        let timeRaw = UInt32(bytes[3]) << 24 | UInt32(bytes[2]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[0])
+        var timestamp = Double(timeRaw) / 32.768 / 1000.0
+
+        // RED/IR 데이터 샘플 분해
+        for i in stride(from: 4, to: 172, by: 6) {
+            let red = Int(bytes[i]) << 16 | Int(bytes[i+1]) << 8 | Int(bytes[i+2])
+            let ir  = Int(bytes[i+3]) << 16 | Int(bytes[i+4]) << 8 | Int(bytes[i+5])
+
+            // UI 업데이트
+            DispatchQueue.main.async {
+                self.lastPPGReading = (red: red, ir: ir)
+            }
+
+            if isRecording, var writer = ppgWriter {
+                let currentTime = Date().timeIntervalSince1970
+                writer.write("\(currentTime),\(red),\(ir)\n")
+            }
+
+            timestamp += 1.0 / PPG_SAMPLE_RATE
+        }
+
+        print("Last sample - RED: \(lastPPGReading.red), IR: \(lastPPGReading.ir)")
+    }
+
+    public func handleEEGData(_ data: Data) {
+        let bytes = [UInt8](data)
         guard bytes.count >= 5 else { return }
 
         let ch1 = Int16(bitPattern: UInt16(bytes[0]) | (UInt16(bytes[1]) << 8))
@@ -32,38 +202,38 @@ public class BluetoothViewModel: NSObject, ObservableObject {
         let ch1uV = Double(ch1) * 0.195
         let ch2uV = Double(ch2) * 0.195
 
+        // UI 업데이트
+        DispatchQueue.main.async {
+            self.lastEEGReading = (ch1: ch1uV, ch2: ch2uV, leadOff: leadOff)
+        }
+
+        if isRecording, var writer = eegWriter {
+            let timestamp = Date().timeIntervalSince1970
+            writer.write("\(timestamp),\(leadOff ? 1 : 0),\(ch1uV),\(ch2uV)\n")
+        }
+
         print("EEG CH1: \(ch1uV) µV, CH2: \(ch2uV) µV, LeadOff: \(leadOff)")
-
-        // TODO: 저장, 그래프, FFT 처리
-    }
-
-    public func handlePPGData(_ data: Data) {
-        // 예: [RED_L, RED_H, IR_L, IR_H]
-        let bytes = [UInt8](data)
-
-        guard bytes.count >= 4 else { return }
-
-        let red = UInt16(bytes[0]) | (UInt16(bytes[1]) << 8)
-        let ir  = UInt16(bytes[2]) | (UInt16(bytes[3]) << 8)
-
-        print("PPG - RED: \(red), IR: \(ir)")
-
-        // TODO: BPM, SDNN, SpO₂ 계산 후 update_bpm()
     }
 
     public func handleAccelData(_ data: Data) {
-        // 예: [X_L, X_H, Y_L, Y_H, Z_L, Z_H]
         let bytes = [UInt8](data)
-
         guard bytes.count >= 6 else { return }
 
         let x = Int16(bitPattern: UInt16(bytes[0]) | (UInt16(bytes[1]) << 8))
         let y = Int16(bitPattern: UInt16(bytes[2]) | (UInt16(bytes[3]) << 8))
         let z = Int16(bitPattern: UInt16(bytes[4]) | (UInt16(bytes[5]) << 8))
 
-        print("Accel X: \(x), Y: \(y), Z: \(z)")
+        // UI 업데이트
+        DispatchQueue.main.async {
+            self.lastAccelReading = (x: x, y: y, z: z)
+        }
 
-        // TODO: CSV 저장 및 실시간 그래프
+        if isRecording, var writer = accelWriter {
+            let timestamp = Date().timeIntervalSince1970
+            writer.write("\(timestamp),\(x),\(y),\(z)\n")
+        }
+
+        print("Accel X: \(x), Y: \(y), Z: \(z)")
     }
 
     public func handleBatteryData(_ data: Data) {

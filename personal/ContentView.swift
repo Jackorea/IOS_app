@@ -17,7 +17,7 @@ import CoreBluetooth
 struct ContentView: View {
     @ObservedObject private var bluetoothViewModel = BluetoothViewModel()
     @State private var isAnimating = false
-    
+
     var body: some View {
         NavigationView {
             ZStack {
@@ -27,7 +27,7 @@ struct ContentView: View {
                 VStack(spacing: 24) {
                     // Status Card
                     VStack(spacing: 12) {
-                        HStack {
+                HStack {
                             Image(systemName: bluetoothViewModel.connectedPeripheral != nil ? "wave.3.right.circle.fill" : "wave.3.right.circle")
                                 .font(.system(size: 24))
                                 .foregroundColor(bluetoothViewModel.connectedPeripheral != nil ? .green : .gray)
@@ -54,34 +54,34 @@ struct ContentView: View {
                     HStack(spacing: 16) {
                         Button(action: {
                             withAnimation {
-                                bluetoothViewModel.startScan()
-                            }
+                        bluetoothViewModel.startScan()
+                    }
                         }) {
                             HStack {
                                 Image(systemName: "magnifyingglass")
                                 Text("Search")
                             }
                             .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
                             .cornerRadius(12)
                         }
-                        
+
                         if bluetoothViewModel.isScanning {
                             Button(action: {
                                 withAnimation {
-                                    bluetoothViewModel.stopScan()
-                                }
+                        bluetoothViewModel.stopScan()
+                    }
                             }) {
                                 HStack {
                                     Image(systemName: "stop.fill")
                                     Text("Stop")
                                 }
                                 .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.red)
-                                .foregroundColor(.white)
+                    .padding()
+                    .background(Color.red)
+                    .foregroundColor(.white)
                                 .cornerRadius(12)
                             }
                         }
@@ -90,48 +90,83 @@ struct ContentView: View {
                     if bluetoothViewModel.connectedPeripheral != nil {
                         Button(action: {
                             withAnimation {
-                                bluetoothViewModel.disconnect()
-                            }
+                        bluetoothViewModel.disconnect()
+                    }
                         }) {
                             HStack {
                                 Image(systemName: "link.badge.minus")
                                 Text("Disconnect")
                             }
                             .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.orange)
-                            .foregroundColor(.white)
+                    .padding()
+                    .background(Color.orange)
+                    .foregroundColor(.white)
                             .cornerRadius(12)
+                        }
+
+                        // Recording Controls
+                        if !bluetoothViewModel.isRecording {
+                            Button(action: {
+                                withAnimation {
+                                    bluetoothViewModel.startRecording()
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "record.circle")
+                                    Text("Start Recording")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.red)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                            }
+                        } else {
+                            Button(action: {
+                                withAnimation {
+                                    bluetoothViewModel.stopRecording()
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "stop.circle")
+                                    Text("Stop Recording")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.gray)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                            }
                         }
                     }
                     
                     // Device List
                     List {
                         ForEach(bluetoothViewModel.devices) { device in
-                            HStack {
+                    HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(device.name)
+                        Text(device.name)
                                         .font(.headline)
                                     Text("Tap to connect")
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                 }
                                 
-                                Spacer()
+                        Spacer()
                                 
                                 Button(action: {
                                     withAnimation {
-                                        bluetoothViewModel.connectToDevice(device)
-                                    }
+                            bluetoothViewModel.connectToDevice(device)
+                        }
                                 }) {
                                     Text("Connect")
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 8)
-                                        .background(Color.green)
-                                        .foregroundColor(.white)
+                        .background(Color.green)
+                        .foregroundColor(.white)
                                         .cornerRadius(8)
-                                }
-                            }
+                    }
+                }
                             .padding(.vertical, 8)
                         }
                     }
@@ -139,8 +174,8 @@ struct ContentView: View {
                     
                     Toggle("Auto-reconnect", isOn: $bluetoothViewModel.autoReconnectEnabled)
                         .padding(.horizontal)
-                }
-                .padding()
+            }
+            .padding()
             }
             .navigationTitle("Bluetooth Devices")
             .alert(isPresented: $bluetoothViewModel.showBluetoothOffAlert) {
