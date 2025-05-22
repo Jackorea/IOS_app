@@ -30,46 +30,46 @@ public class BluetoothViewModel: NSObject, ObservableObject {
     @Published public var lastAccelReading: (x: Int16, y: Int16, z: Int16) = (0, 0, 0)
     @Published public var recordedFiles: [URL] = []
     
-    private var lastConnectedPeripheralIdentifier: UUID? // 마지막 연결된 기기 ID
-    private var userInitiatedDisconnect: Bool = false // 사용자에 의한 연결 해제 여부
+    private var lastConnectedPeripheralIdentifier: UUID?
+    private var userInitiatedDisconnect: Bool = false
     private var ppgWriter: TextOutputStream?
     private var eegWriter: TextOutputStream?
     private var accelWriter: TextOutputStream?
-    private var lastRecordedTimestamp: TimeInterval = 0
-    private var currentSensorData: SensorData
+    private var rawDataWriter: TextOutputStream?
     
-    // 센서 데이터를 임시 저장하는 구조체
-    private struct SensorData {
-        var timestamp: TimeInterval = 0
-        var ppg: (red: Int, ir: Int) = (0, 0)
-        var eeg: (ch1: Double, ch2: Double, leadOff: Bool) = (0, 0, false)
-        var accel: (x: Int16, y: Int16, z: Int16) = (0, 0, 0)
-        var isUpdated: (ppg: Bool, eeg: Bool, accel: Bool) = (false, false, false)
-        
-        mutating func reset() {
-            isUpdated = (false, false, false)
-        }
-        
-        var allUpdated: Bool {
-            return isUpdated.ppg && isUpdated.eeg && isUpdated.accel
-        }
-        
-        func toCsvString() -> String {
-            return "\(timestamp),\(ppg.red),\(ppg.ir),\(eeg.ch1),\(eeg.ch2),\(eeg.leadOff ? 1 : 0),\(accel.x),\(accel.y),\(accel.z)\n"
-        }
+    // Raw 데이터를 저장하기 위한 구조체들
+    private struct RawPPGData: Codable {
+        let timestamp: TimeInterval
+        let rawBytes: [UInt8]
     }
+    
+    private struct RawEEGData: Codable {
+        let timestamp: TimeInterval
+        let rawBytes: [UInt8]
+    }
+    
+    private struct RawAccelData: Codable {
+        let timestamp: TimeInterval
+        let rawBytes: [UInt8]
+    }
+    
+    private struct RawDataPacket: Codable {
+        let type: String
+        let data: [UInt8]
+        let timestamp: TimeInterval
+    }
+    
+    private var rawDataArray: [RawDataPacket] = []
     
     // 저장된 파일들의 디렉토리 URL을 반환
     public var recordingsDirectory: URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        return paths[0]  // 루트 Documents 디렉토리 반환
+        return paths[0]
     }
     
     override public init() {
-        currentSensorData = SensorData()
         super.init()
         centralManager = CBCentralManager(delegate: self, queue: .main)
-        // 초기화 시 저장된 파일 목록 로드
         updateRecordedFiles()
     }
     
@@ -87,6 +87,14 @@ public class BluetoothViewModel: NSObject, ObservableObject {
             .replacingOccurrences(of: " ", with: "_")
             .replacingOccurrences(of: ":", with: "-")
             .replacingOccurrences(of: "/", with: "-")
+        
+        // Raw 데이터 JSON 파일 생성
+        let rawDataURL = recordingsDirectory.appendingPathComponent("raw_data_\(timestamp).json")
+        FileManager.default.createFile(atPath: rawDataURL.path, contents: nil, attributes: nil)
+        if let handle = try? FileHandle(forWritingTo: rawDataURL) {
+            rawDataWriter = FileWriter(fileHandle: handle)
+            rawDataArray = []
+        }
         
         // EEG 파일 생성
         let eegFileURL = recordingsDirectory.appendingPathComponent("eeg_\(timestamp).csv")
@@ -116,13 +124,25 @@ public class BluetoothViewModel: NSObject, ObservableObject {
         }
         
         isRecording = true
-        currentSensorData = SensorData()
-        lastRecordedTimestamp = Date().timeIntervalSince1970
         print("Recording started")
     }
     
     public func stopRecording() {
         isRecording = false
+        
+        // Raw 데이터 저장
+        if let handle = (rawDataWriter as? FileWriter)?.fileHandle {
+            do {
+                let jsonData = try JSONEncoder().encode(rawDataArray)
+                handle.seek(toFileOffset: 0)
+                handle.write(jsonData)
+            } catch {
+                print("Error saving raw data: \(error)")
+            }
+            try? handle.close()
+        }
+        rawDataWriter = nil
+        rawDataArray = []
         
         // EEG 파일 닫기
         if let handle = (eegWriter as? FileWriter)?.fileHandle {
@@ -146,24 +166,21 @@ public class BluetoothViewModel: NSObject, ObservableObject {
         print("Recording stopped.")
     }
     
-    // 센서 데이터 업데이트 및 저장
-    private func updateAndSaveData() {
-        guard isRecording, var writer = ppgWriter else { return }
-        
-        let currentTime = Date().timeIntervalSince1970
-        // 모든 센서 데이터가 업데이트되었거나, 마지막 저장 후 일정 시간이 지났을 때 저장
-        if currentSensorData.allUpdated || (currentTime - lastRecordedTimestamp) >= 0.02 { // 50Hz로 제한
-            writer.write("\(currentTime),\(currentSensorData.ppg.red),\(currentSensorData.ppg.ir)\n")
-            lastRecordedTimestamp = currentTime
-            currentSensorData.reset()
-        }
-    }
-    
     public func handlePPGData(_ data: Data) {
         let bytes = [UInt8](data)
         guard bytes.count == 172 else {
             print("PPG packet length invalid: \(bytes.count) bytes (expected 172).")
             return
+        }
+
+        // Raw 데이터 저장
+        if isRecording {
+            let rawPacket = RawDataPacket(
+                type: "PPG",
+                data: bytes,
+                timestamp: Date().timeIntervalSince1970
+            )
+            rawDataArray.append(rawPacket)
         }
 
         // 타임스탬프 계산
@@ -195,6 +212,16 @@ public class BluetoothViewModel: NSObject, ObservableObject {
         let bytes = [UInt8](data)
         guard bytes.count >= 5 else { return }
 
+        // Raw 데이터 저장
+        if isRecording {
+            let rawPacket = RawDataPacket(
+                type: "EEG",
+                data: bytes,
+                timestamp: Date().timeIntervalSince1970
+            )
+            rawDataArray.append(rawPacket)
+        }
+
         let ch1 = Int16(bitPattern: UInt16(bytes[0]) | (UInt16(bytes[1]) << 8))
         let ch2 = Int16(bitPattern: UInt16(bytes[2]) | (UInt16(bytes[3]) << 8))
         let leadOff = bytes[4] != 0
@@ -218,6 +245,16 @@ public class BluetoothViewModel: NSObject, ObservableObject {
     public func handleAccelData(_ data: Data) {
         let bytes = [UInt8](data)
         guard bytes.count >= 6 else { return }
+
+        // Raw 데이터 저장
+        if isRecording {
+            let rawPacket = RawDataPacket(
+                type: "ACCEL",
+                data: bytes,
+                timestamp: Date().timeIntervalSince1970
+            )
+            rawDataArray.append(rawPacket)
+        }
 
         let x = Int16(bitPattern: UInt16(bytes[0]) | (UInt16(bytes[1]) << 8))
         let y = Int16(bitPattern: UInt16(bytes[2]) | (UInt16(bytes[3]) << 8))
