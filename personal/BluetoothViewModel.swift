@@ -267,6 +267,10 @@ public class BluetoothViewModel: NSObject, ObservableObject {
     
     public func disconnect() {
         guard let connected = connectedPeripheral else { return }
+        // 연결 해제 시 녹화 중지
+        if isRecording {
+            stopRecording()
+        }
         userInitiatedDisconnect = true // 사용자가 연결 해제 시도
         centralManager.cancelPeripheralConnection(connected)
         connectionStatus = "Disconnecting..."
@@ -321,6 +325,11 @@ extension BluetoothViewModel: CBCentralManagerDelegate {
         connectionStatus = "Disconnected"
         let disconnectedPeripheralName = peripheral.name ?? "device"
         print("Bluetooth device \(disconnectedPeripheralName) disconnected with error: \(error?.localizedDescription ?? "None")")
+
+        // 연결 해제 시 녹화 중지
+        if isRecording {
+            stopRecording()
+        }
 
         if connectedPeripheral?.identifier == peripheral.identifier {
             connectedPeripheral = nil
