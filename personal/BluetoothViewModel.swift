@@ -29,42 +29,53 @@ public class BluetoothViewModel: NSObject, ObservableObject {
     @Published public var lastEEGReading: (ch1: Double, ch2: Double, leadOff: Bool) = (0, 0, false)
     @Published public var lastAccelReading: (x: Int16, y: Int16, z: Int16) = (0, 0, 0)
     @Published public var recordedFiles: [URL] = []
+    @Published public var rawDataJSONString: String = "{}"
     
     private var lastConnectedPeripheralIdentifier: UUID?
     private var userInitiatedDisconnect: Bool = false
-    private var ppgWriter: TextOutputStream?
-    private var eegWriter: TextOutputStream?
-    private var accelWriter: TextOutputStream?
+    private var unifiedCsvWriter: TextOutputStream?
     private var rawDataWriter: TextOutputStream?
     
-    // Raw 데이터를 저장하기 위한 구조체들
-    private struct RawPPGData: Codable {
-        let timestamp: TimeInterval
-        let rawBytes: [UInt8]
-    }
+    // Raw 데이터를 저장하기 위한 구조체들 (JSON 직접 구성으로 변경되므로 RawDataPacket 등은 사용 안 함)
+    // private struct RawPPGData: Codable { ... }
+    // private struct RawEEGData: Codable { ... }
+    // private struct RawAccelData: Codable { ... }
+    // private struct RawDataPacket: Codable { ... }
     
-    private struct RawEEGData: Codable {
-        let timestamp: TimeInterval
-        let rawBytes: [UInt8]
-    }
+    // private var rawDataArray: [RawDataPacket] = [] // 기존 배열 주석 처리 또는 삭제
+    // 요청된 JSON 구조를 위한 딕셔너리
+    private var rawDataDict: [String: Any] = [ // 각 키의 값은 특정 타입의 배열임
+        "timestamp": [Double](),
+        "eegChannel1": [Double](),
+        "eegChannel2": [Double](),
+        "eegLeadOff": [Int](), // 0 for false, 1 for true
+        "ppgRed": [Int](),
+        "ppgIr": [Int](),
+        "accelX": [Int](),
+        "accelY": [Int](),
+        "accelZ": [Int]()
+    ]
     
-    private struct RawAccelData: Codable {
-        let timestamp: TimeInterval
-        let rawBytes: [UInt8]
-    }
-    
-    private struct RawDataPacket: Codable {
-        let type: String
-        let data: [UInt8]
-        let timestamp: TimeInterval
-    }
-    
-    private var rawDataArray: [RawDataPacket] = []
+    // 1초 간격 타임스탬프 저장을 위한 타이머
+    private var recordingTimer: Timer?
     
     // 저장된 파일들의 디렉토리 URL을 반환
     public var recordingsDirectory: URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0]
+    }
+    
+    // JSON 파일 저장을 위한 Encodable 구조체
+    private struct SensorDataJSON: Encodable {
+        let timestamp: [Double]
+        let eegChannel1: [Double]
+        let eegChannel2: [Double]
+        let eegLeadOff: [Int]
+        let ppgRed: [Int]
+        let ppgIr: [Int]
+        let accelX: [Int]
+        let accelY: [Int]
+        let accelZ: [Int]
     }
     
     override public init() {
@@ -83,194 +94,336 @@ public class BluetoothViewModel: NSObject, ObservableObject {
     
     // 데이터 기록 시작
     public func startRecording() {
-        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .medium)
-            .replacingOccurrences(of: " ", with: "_")
-            .replacingOccurrences(of: ":", with: "-")
-            .replacingOccurrences(of: "/", with: "-")
+        print("startRecording called") // DEBUG
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timestampString = dateFormatter.string(from: Date())
         
-        // Raw 데이터 JSON 파일 생성
-        let rawDataURL = recordingsDirectory.appendingPathComponent("raw_data_\(timestamp).json")
+        let rawDataURL = recordingsDirectory.appendingPathComponent("raw_data_\(timestampString).json")
         FileManager.default.createFile(atPath: rawDataURL.path, contents: nil, attributes: nil)
         if let handle = try? FileHandle(forWritingTo: rawDataURL) {
             rawDataWriter = FileWriter(fileHandle: handle)
-            rawDataArray = []
+            rawDataDict = [
+                "timestamp": [Double](),
+                "eegChannel1": [Double](),
+                "eegChannel2": [Double](),
+                "eegLeadOff": [Int](),
+                "ppgRed": [Int](),
+                "ppgIr": [Int](),
+                "accelX": [Int](),
+                "accelY": [Int](),
+                "accelZ": [Int]()
+            ]
         }
         
-        // EEG 파일 생성
-        let eegFileURL = recordingsDirectory.appendingPathComponent("eeg_\(timestamp).csv")
-        FileManager.default.createFile(atPath: eegFileURL.path, contents: nil, attributes: nil)
-        if let handle = try? FileHandle(forWritingTo: eegFileURL) {
+        // CSV 파일명 타임스탬프 (기존 로직 유지)
+        let csvTimestampString = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .medium)
+            .replacingOccurrences(of: " ", with: "_")
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: "/", with: "-")
+
+        // 통합 CSV 파일 생성
+        let unifiedCsvURL = recordingsDirectory.appendingPathComponent("unified_data_\(csvTimestampString).csv")
+        FileManager.default.createFile(atPath: unifiedCsvURL.path, contents: nil, attributes: nil)
+        if let handle = try? FileHandle(forWritingTo: unifiedCsvURL) {
             var writer = FileWriter(fileHandle: handle)
-            writer.write("timestamp,lead_off,ch1_uV,ch2_uV\n")
-            eegWriter = writer
-        }
-        
-        // PPG 파일 생성
-        let ppgFileURL = recordingsDirectory.appendingPathComponent("ppg_\(timestamp).csv")
-        FileManager.default.createFile(atPath: ppgFileURL.path, contents: nil, attributes: nil)
-        if let handle = try? FileHandle(forWritingTo: ppgFileURL) {
-            var writer = FileWriter(fileHandle: handle)
-            writer.write("timestamp,ppg_red,ppg_ir\n")
-            ppgWriter = writer
-        }
-        
-        // ACC 파일 생성
-        let accFileURL = recordingsDirectory.appendingPathComponent("acc_\(timestamp).csv")
-        FileManager.default.createFile(atPath: accFileURL.path, contents: nil, attributes: nil)
-        if let handle = try? FileHandle(forWritingTo: accFileURL) {
-            var writer = FileWriter(fileHandle: handle)
-            writer.write("timestamp,acc_x,acc_y,acc_z\n")
-            accelWriter = writer
+            // JSON 파일 순서와 동일한 헤더 적용
+            writer.write("timestamp,EEG_ch1,EEG_ch2,EEG_leadOff,PPG_red,PPG_ir,ACCEL_x,ACCEL_y,ACCEL_z\n")
+            unifiedCsvWriter = writer
         }
         
         isRecording = true
-        print("Recording started")
+        // 1초 간격 타이머 시작
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self, self.isRecording else { return }
+            let currentTime = Date().timeIntervalSince1970 * 1000 // 밀리세컨드 단위로 저장
+            if var tsArray = self.rawDataDict["timestamp"] as? [Double] {
+                tsArray.append(currentTime)
+                self.rawDataDict["timestamp"] = tsArray
+            } else {
+                // print("Error: Could not append to timestamp array in rawDataDict") // DEBUG
+            }
+             // print("Timer ticked: \(currentTime)") // DEBUG
+        }
+        print("Recording started, JSON will be saved to: \(rawDataURL.path)")
+        rawDataJSONString = "{}"
     }
     
     public func stopRecording() {
+        print("stopRecording called") // DEBUG
         isRecording = false
+        recordingTimer?.invalidate() // 타이머 중지
+        recordingTimer = nil
         
-        // Raw 데이터 저장
+        // JSON 파일 저장
         if let handle = (rawDataWriter as? FileWriter)?.fileHandle {
+            // rawDataDict를 SensorDataJSON 구조체로 변환
+            let encodableData = SensorDataJSON(
+                timestamp: rawDataDict["timestamp"] as? [Double] ?? [],
+                eegChannel1: rawDataDict["eegChannel1"] as? [Double] ?? [],
+                eegChannel2: rawDataDict["eegChannel2"] as? [Double] ?? [],
+                eegLeadOff: rawDataDict["eegLeadOff"] as? [Int] ?? [],
+                ppgRed: rawDataDict["ppgRed"] as? [Int] ?? [],
+                ppgIr: rawDataDict["ppgIr"] as? [Int] ?? [],
+                accelX: rawDataDict["accelX"] as? [Int] ?? [],
+                accelY: rawDataDict["accelY"] as? [Int] ?? [],
+                accelZ: rawDataDict["accelZ"] as? [Int] ?? []
+            )
+            
             do {
-                let jsonData = try JSONEncoder().encode(rawDataArray)
+                let jsonData = try JSONEncoder().encode(encodableData) // 이제 SensorDataJSON 인스턴스를 인코딩
                 handle.seek(toFileOffset: 0)
                 handle.write(jsonData)
+                print("Raw data JSON saved.")
             } catch {
-                print("Error saving raw data: \(error)")
+                print("Error saving raw data JSON: \(error)")
             }
             try? handle.close()
         }
         rawDataWriter = nil
-        rawDataArray = []
+        // 저장 후 rawDataDict 초기화
+        rawDataDict = [
+            "timestamp": [Double](),
+            "eegChannel1": [Double](),
+            "eegChannel2": [Double](),
+            "eegLeadOff": [Int](),
+            "ppgRed": [Int](),
+            "ppgIr": [Int](),
+            "accelX": [Int](),
+            "accelY": [Int](),
+            "accelZ": [Int]()
+        ]
+        rawDataJSONString = "{}"
         
-        // EEG 파일 닫기
-        if let handle = (eegWriter as? FileWriter)?.fileHandle {
+        // 통합 CSV 파일 닫기
+        if let handle = (unifiedCsvWriter as? FileWriter)?.fileHandle {
             try? handle.close()
         }
-        eegWriter = nil
-        
-        // PPG 파일 닫기
-        if let handle = (ppgWriter as? FileWriter)?.fileHandle {
-            try? handle.close()
-        }
-        ppgWriter = nil
-        
-        // ACC 파일 닫기
-        if let handle = (accelWriter as? FileWriter)?.fileHandle {
-            try? handle.close()
-        }
-        accelWriter = nil
+        unifiedCsvWriter = nil
         
         updateRecordedFiles()
         print("Recording stopped.")
     }
     
+    private func updateRawDataJSONString() {
+        // rawDataDict를 SensorDataJSON 구조체로 변환
+        let encodableData = SensorDataJSON(
+            timestamp: rawDataDict["timestamp"] as? [Double] ?? [],
+            eegChannel1: rawDataDict["eegChannel1"] as? [Double] ?? [],
+            eegChannel2: rawDataDict["eegChannel2"] as? [Double] ?? [],
+            eegLeadOff: rawDataDict["eegLeadOff"] as? [Int] ?? [],
+            ppgRed: rawDataDict["ppgRed"] as? [Int] ?? [],
+            ppgIr: rawDataDict["ppgIr"] as? [Int] ?? [],
+            accelX: rawDataDict["accelX"] as? [Int] ?? [],
+            accelY: rawDataDict["accelY"] as? [Int] ?? [],
+            accelZ: rawDataDict["accelZ"] as? [Int] ?? []
+        )
+        
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted]
+        if let data = try? encoder.encode(encodableData), let jsonString = String(data: data, encoding: .utf8) {
+            DispatchQueue.main.async {
+                self.rawDataJSONString = jsonString
+            }
+        }
+    }
+    
     public func handlePPGData(_ data: Data) {
+        print("handlePPGData called, data count: \(data.count)")
         let bytes = [UInt8](data)
         guard bytes.count == 172 else {
             print("PPG packet length invalid: \(bytes.count) bytes (expected 172).")
             return
         }
 
-        // Raw 데이터 저장
-        if isRecording {
-            let rawPacket = RawDataPacket(
-                type: "PPG",
-                data: bytes,
-                timestamp: Date().timeIntervalSince1970
-            )
-            rawDataArray.append(rawPacket)
-        }
-
-        // 타임스탬프 계산
-        let timeRaw = UInt32(bytes[3]) << 24 | UInt32(bytes[2]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[0])
-        var timestamp = Double(timeRaw) / 32.768 / 1000.0
-
-        // RED/IR 데이터 샘플 분해
         for i in stride(from: 4, to: 172, by: 6) {
             let red = Int(bytes[i]) << 16 | Int(bytes[i+1]) << 8 | Int(bytes[i+2])
             let ir  = Int(bytes[i+3]) << 16 | Int(bytes[i+4]) << 8 | Int(bytes[i+5])
+            let csvTimestamp = Date().timeIntervalSince1970 // CSV용 타임스탬프
+            
+            // 녹화 상태와 관계없이 터미널에 샘플 값 출력 (Live View)
+            print("[PPG Sample (Live)] Red: \(red), IR: \(ir)")
 
-            // UI 업데이트
+            if isRecording {
+                if var ppgRedArray = rawDataDict["ppgRed"] as? [Int] {
+                    ppgRedArray.append(red)
+                    rawDataDict["ppgRed"] = ppgRedArray
+                }
+                if var ppgIrArray = rawDataDict["ppgIr"] as? [Int] {
+                    ppgIrArray.append(ir)
+                    rawDataDict["ppgIr"] = ppgIrArray
+                }
+                
+                // 통합 CSV에 기록
+                if var writer = unifiedCsvWriter {
+                    // timestamp,EEG_ch1,EEG_ch2,EEG_leadOff,PPG_red,PPG_ir,ACCEL_x,ACCEL_y,ACCEL_z
+                    let line = "\(csvTimestamp),,,,\(red),\(ir),,,\n"
+                    writer.write(line)
+                }
+            }
+            
             DispatchQueue.main.async {
                 self.lastPPGReading = (red: red, ir: ir)
             }
-
-            if isRecording, var writer = ppgWriter {
-                let currentTime = Date().timeIntervalSince1970
-                writer.write("\(currentTime),\(red),\(ir)\n")
-            }
-
-            timestamp += 1.0 / PPG_SAMPLE_RATE
         }
-
-        print("Last sample - RED: \(lastPPGReading.red), IR: \(lastPPGReading.ir)")
+        if isRecording { updateRawDataJSONString() } // 패킷 처리 후 JSON 문자열 UI 업데이트
     }
 
     public func handleEEGData(_ data: Data) {
+        print("handleEEGData called, data count: \(data.count)")
         let bytes = [UInt8](data)
-        guard bytes.count >= 5 else { return }
-
-        // Raw 데이터 저장
-        if isRecording {
-            let rawPacket = RawDataPacket(
-                type: "EEG",
-                data: bytes,
-                timestamp: Date().timeIntervalSince1970
-            )
-            rawDataArray.append(rawPacket)
+        let headerSize = 4
+        let sampleSize = 7 // Python 코드 기준: LeadOff(1) + CH1(3) + CH2(3)
+        
+        guard bytes.count >= headerSize + sampleSize else { 
+            print("EEG packet too short (even for header + 1 sample): \(bytes.count) bytes. Expected at least \(headerSize + sampleSize) bytes.")
+            return
         }
+        
+        // Python 코드에서는 첫 4바이트를 timeRaw로 사용. 여기서는 일단 건너뜀.
+        // let timeRaw = UInt32(bytes[3]) << 24 | UInt32(bytes[2]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[0])
+        // let packetTimestamp = Double(timeRaw) / 32.768 / 1000.0
 
-        let ch1 = Int16(bitPattern: UInt16(bytes[0]) | (UInt16(bytes[1]) << 8))
-        let ch2 = Int16(bitPattern: UInt16(bytes[2]) | (UInt16(bytes[3]) << 8))
-        let leadOff = bytes[4] != 0
-
-        let ch1uV = Double(ch1) * 0.195
-        let ch2uV = Double(ch2) * 0.195
-
-        // UI 업데이트
-        DispatchQueue.main.async {
-            self.lastEEGReading = (ch1: ch1uV, ch2: ch2uV, leadOff: leadOff)
+        let dataWithoutHeaderCount = bytes.count - headerSize
+        guard dataWithoutHeaderCount >= sampleSize else {
+            print("EEG packet has header but not enough data for one sample: \(bytes.count) bytes.")
+            return
         }
-
-        if isRecording, var writer = eegWriter {
-            let timestamp = Date().timeIntervalSince1970
-            writer.write("\(timestamp),\(leadOff ? 1 : 0),\(ch1uV),\(ch2uV)\n")
+        
+        let sampleCount = dataWithoutHeaderCount / sampleSize 
+        if dataWithoutHeaderCount % sampleSize != 0 {
+            // Python 코드 구조를 적용하면 이 경고는 발생하지 않아야 함
+            print("Warning: EEG data length after header (\(dataWithoutHeaderCount)) is not a multiple of sample size (\(sampleSize)). Processing \(sampleCount) samples.")
         }
+        
+        for i in 0..<sampleCount {
+            let baseInFullPacket = headerSize + (i * sampleSize)
+            
+            let leadOffByte = bytes[baseInFullPacket] // 1 byte
+            let leadOff = leadOffByte != 0
+            
+            // CH1: 3 bytes (bytes[base+1], bytes[base+2], bytes[base+3])
+            var ch1Raw = Int32(bytes[baseInFullPacket+1]) | (Int32(bytes[baseInFullPacket+2]) << 8) | (Int32(bytes[baseInFullPacket+3]) << 16)
+            if (ch1Raw & 0x00800000) != 0 { // 24-bit MSB check for sign
+                ch1Raw |= ~0x00FFFFFF // Sign extend for 24-bit negative number
+            }
+            
+            // CH2: 3 bytes (bytes[base+4], bytes[base+5], bytes[base+6])
+            var ch2Raw = Int32(bytes[baseInFullPacket+4]) | (Int32(bytes[baseInFullPacket+5]) << 8) | (Int32(bytes[baseInFullPacket+6]) << 16)
+            if (ch2Raw & 0x00800000) != 0 { // 24-bit MSB check for sign
+                ch2Raw |= ~0x00FFFFFF // Sign extend for 24-bit negative number
+            }
+            
+            // Python: ch1_uv = ch1_raw * 4.033 / 12 / (2**23 - 1) * 1e6
+            // (2**23 - 1) is 8388607
+            let scaleFactor = (4.033 / 12.0 / 8388607.0) * 1_000_000.0
+            let ch1uV = Double(ch1Raw) * scaleFactor
+            let ch2uV = Double(ch2Raw) * scaleFactor
+            
+            let csvTimestamp = Date().timeIntervalSince1970 // CSV용 타임스탬프
 
-        print("EEG CH1: \(ch1uV) µV, CH2: \(ch2uV) µV, LeadOff: \(leadOff)")
+            // 녹화 상태와 관계없이 터미널에 샘플 값 출력 (Live View)
+            print("[EEG Sample (Live)] CH1: \(ch1uV) µV, CH2: \(ch2uV) µV, LeadOff: \(leadOffByte == 0 ? 0 : 1)")
+            
+            if isRecording {
+                if var eegCh1Array = rawDataDict["eegChannel1"] as? [Double] {
+                    eegCh1Array.append(ch1uV)
+                    rawDataDict["eegChannel1"] = eegCh1Array
+                }
+                if var eegCh2Array = rawDataDict["eegChannel2"] as? [Double] {
+                    eegCh2Array.append(ch2uV)
+                    rawDataDict["eegChannel2"] = eegCh2Array
+                }
+                if var eegLeadOffArray = rawDataDict["eegLeadOff"] as? [Int] {
+                    eegLeadOffArray.append(leadOffByte == 0 ? 0 : 1)
+                    rawDataDict["eegLeadOff"] = eegLeadOffArray
+                }
+                
+                // 통합 CSV에 기록
+                if var writer = unifiedCsvWriter {
+                    // timestamp,EEG_ch1,EEG_ch2,EEG_leadOff,PPG_red,PPG_ir,ACCEL_x,ACCEL_y,ACCEL_z
+                    let line = "\(csvTimestamp),\(ch1uV),\(ch2uV),\(leadOffByte == 0 ? 0 : 1),,,,,\n"
+                    writer.write(line)
+                }
+            }
+
+            if i == sampleCount - 1 {
+                DispatchQueue.main.async {
+                    self.lastEEGReading = (ch1: ch1uV, ch2: ch2uV, leadOff: leadOff)
+                }
+            }
+        }
+        if isRecording { updateRawDataJSONString() } // 패킷 처리 후 JSON 문자열 UI 업데이트
     }
 
     public func handleAccelData(_ data: Data) {
+        print("handleAccelData called, data count: \(data.count)")
         let bytes = [UInt8](data)
-        guard bytes.count >= 6 else { return }
+        let headerSize = 4
+        let sampleSize = 6
+        
+        guard bytes.count >= headerSize + sampleSize else { 
+            print("ACCEL packet too short (even for header + 1 sample): \(bytes.count) bytes. Expected at least \(headerSize + sampleSize) bytes.")
+            return
+        }
+        
+        // Python 코드에서는 첫 4바이트를 timeRaw로 사용. 여기서는 일단 건너뜀.
+        // let timeRaw = UInt32(bytes[3]) << 24 | UInt32(bytes[2]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[0])
+        // let packetTimestamp = Double(timeRaw) / 32.768 / 1000.0
 
-        // Raw 데이터 저장
-        if isRecording {
-            let rawPacket = RawDataPacket(
-                type: "ACCEL",
-                data: bytes,
-                timestamp: Date().timeIntervalSince1970
-            )
-            rawDataArray.append(rawPacket)
+        let dataWithoutHeaderCount = bytes.count - headerSize
+        guard dataWithoutHeaderCount >= sampleSize else {
+            print("ACCEL packet has header but not enough data for one sample: \(bytes.count) bytes.")
+            return
+        }
+        
+        let sampleCount = dataWithoutHeaderCount / sampleSize
+        if dataWithoutHeaderCount % sampleSize != 0 {
+            // 이 경고는 Python 코드 구조를 적용하면 발생하지 않아야 함
+            // 하지만 만약 발생한다면, 헤더 이후의 데이터가 샘플 크기의 배수가 아니라는 의미
+            print("Warning: ACCEL data length after header (\(dataWithoutHeaderCount)) is not a multiple of sample size (\(sampleSize)). Processing \(sampleCount) samples.")
         }
 
-        let x = Int16(bitPattern: UInt16(bytes[0]) | (UInt16(bytes[1]) << 8))
-        let y = Int16(bitPattern: UInt16(bytes[2]) | (UInt16(bytes[3]) << 8))
-        let z = Int16(bitPattern: UInt16(bytes[4]) | (UInt16(bytes[5]) << 8))
+        for i in 0..<sampleCount {
+            let baseInFullPacket = headerSize + (i * sampleSize)
+            // Swift는 현재 2바이트씩 처리하는 로직 유지 (Python은 1바이트씩 처리했었음)
+            let x = Int16(bitPattern: UInt16(bytes[baseInFullPacket]) | (UInt16(bytes[baseInFullPacket+1]) << 8))
+            let y = Int16(bitPattern: UInt16(bytes[baseInFullPacket+2]) | (UInt16(bytes[baseInFullPacket+3]) << 8))
+            let z = Int16(bitPattern: UInt16(bytes[baseInFullPacket+4]) | (UInt16(bytes[baseInFullPacket+5]) << 8))
+            let csvTimestamp = Date().timeIntervalSince1970 // CSV용 타임스탬프 (패킷 타임스탬프를 쓸 수도 있음)
+            
+            // 녹화 상태와 관계없이 터미널에 샘플 값 출력 (Live View)
+            print("[ACCEL Sample (Live)] X: \(x), Y: \(y), Z: \(z)")
 
-        // UI 업데이트
-        DispatchQueue.main.async {
-            self.lastAccelReading = (x: x, y: y, z: z)
+            if isRecording {
+                if var accelXArray = rawDataDict["accelX"] as? [Int] {
+                    accelXArray.append(Int(x))
+                    rawDataDict["accelX"] = accelXArray
+                }
+                if var accelYArray = rawDataDict["accelY"] as? [Int] {
+                    accelYArray.append(Int(y))
+                    rawDataDict["accelY"] = accelYArray
+                }
+                if var accelZArray = rawDataDict["accelZ"] as? [Int] {
+                    accelZArray.append(Int(z))
+                    rawDataDict["accelZ"] = accelZArray
+                }
+                
+                // 통합 CSV에 기록
+                if var writer = unifiedCsvWriter {
+                    // timestamp,EEG_ch1,EEG_ch2,EEG_leadOff,PPG_red,PPG_ir,ACCEL_x,ACCEL_y,ACCEL_z
+                    let line = "\(csvTimestamp),,,,,,\(Int(x)),\(Int(y)),\(Int(z))\n"
+                    writer.write(line)
+                }
+            }
+
+             if i == sampleCount - 1 {
+                DispatchQueue.main.async {
+                    self.lastAccelReading = (x: x, y: y, z: z)
+                }
+            }
         }
-
-        if isRecording, var writer = accelWriter {
-            let timestamp = Date().timeIntervalSince1970
-            writer.write("\(timestamp),\(x),\(y),\(z)\n")
-        }
-
-        print("Accel X: \(x), Y: \(y), Z: \(z)")
+        if isRecording { updateRawDataJSONString() } // 패킷 처리 후 JSON 문자열 UI 업데이트
     }
 
     public func handleBatteryData(_ data: Data) {
