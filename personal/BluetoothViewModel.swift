@@ -335,13 +335,25 @@ public class BluetoothViewModel: NSObject, ObservableObject {
             let leadOff = leadOffByte != 0
             
             // CH1: 3 bytes (bytes[base+1], bytes[base+2], bytes[base+3])
-            var ch1Raw = Int32(bytes[baseInFullPacket+1]) | (Int32(bytes[baseInFullPacket+2]) << 8) | (Int32(bytes[baseInFullPacket+3]) << 16)
+            let ch1Byte1 = bytes[baseInFullPacket+1]
+            let ch1Byte2 = bytes[baseInFullPacket+2]
+            let ch1Byte3 = bytes[baseInFullPacket+3]
+            
+            // Big Endian: byte1 is MSB, byte3 is LSB
+            var ch1Raw = (Int32(ch1Byte1) << 16) | (Int32(ch1Byte2) << 8) | Int32(ch1Byte3)
+            
             if (ch1Raw & 0x00800000) != 0 { // 24-bit MSB check for sign
                 ch1Raw |= ~0x00FFFFFF // Sign extend for 24-bit negative number
             }
             
             // CH2: 3 bytes (bytes[base+4], bytes[base+5], bytes[base+6])
-            var ch2Raw = Int32(bytes[baseInFullPacket+4]) | (Int32(bytes[baseInFullPacket+5]) << 8) | (Int32(bytes[baseInFullPacket+6]) << 16)
+            let ch2Byte1 = bytes[baseInFullPacket+4]
+            let ch2Byte2 = bytes[baseInFullPacket+5]
+            let ch2Byte3 = bytes[baseInFullPacket+6]
+            
+            // Big Endian: byte1 is MSB, byte3 is LSB
+            var ch2Raw = (Int32(ch2Byte1) << 16) | (Int32(ch2Byte2) << 8) | Int32(ch2Byte3)
+            
             if (ch2Raw & 0x00800000) != 0 { // 24-bit MSB check for sign
                 ch2Raw |= ~0x00FFFFFF // Sign extend for 24-bit negative number
             }
