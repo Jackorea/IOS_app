@@ -129,7 +129,7 @@ public class BluetoothViewModel: NSObject, ObservableObject {
         FileManager.default.createFile(atPath: eegCsvURL.path, contents: nil, attributes: nil)
         if let handle = try? FileHandle(forWritingTo: eegCsvURL) {
             var writer = FileWriter(fileHandle: handle)
-            writer.write("timestamp,EEG_ch1,EEG_ch2,EEG_leadOff\n")
+            writer.write("timestamp,EEG_ch1_raw,EEG_ch2_raw,EEG_ch1,EEG_ch2,EEG_leadOff\n")
             eegCsvWriter = writer
         }
         
@@ -355,7 +355,7 @@ public class BluetoothViewModel: NSObject, ObservableObject {
             let csvTimestamp = Date().timeIntervalSince1970 // CSV용 타임스탬프
 
             // 녹화 상태와 관계없이 터미널에 샘플 값 출력 (Live View)
-            print("[EEG Sample (Live)] CH1: \(ch1uV) µV, CH2: \(ch2uV) µV, LeadOff: \(leadOffByte == 0 ? 0 : 1)")
+            print("[EEG Sample (Live)] CH1_raw: \(ch1Raw), CH2_raw: \(ch2Raw), CH1: \(ch1uV) µV, CH2: \(ch2uV) µV, LeadOff: \(leadOffByte == 0 ? 0 : 1)")
             
             if isRecording {
                 if var eegCh1Array = rawDataDict["eegChannel1"] as? [Double] {
@@ -373,8 +373,8 @@ public class BluetoothViewModel: NSObject, ObservableObject {
                 
                 // EEG CSV에 기록
                 if var writer = eegCsvWriter {
-                    // timestamp,EEG_ch1,EEG_ch2,EEG_leadOff
-                    let line = "\(csvTimestamp),\(ch1uV),\(ch2uV),\(leadOffByte == 0 ? 0 : 1)\n"
+                    // timestamp,EEG_ch1_raw,EEG_ch2_raw,EEG_ch1,EEG_ch2,EEG_leadOff
+                    let line = "\(csvTimestamp),\(ch1Raw),\(ch2Raw),\(ch1uV),\(ch2uV),\(leadOffByte == 0 ? 0 : 1)\n"
                     writer.write(line)
                 }
             }
