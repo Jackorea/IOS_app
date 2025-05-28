@@ -5,6 +5,7 @@ import CoreBluetooth
 // PPG 관련 전역 변수 및 타입 정의
 private var PPG_SAMPLE_RATE: Double = 50.0
 private var EEG_SAMPLE_RATE: Double = 250.0
+private var ACC_SAMPLE_RATE: Double = 50.0  // 파이썬과 동일한 가속도계 샘플링 레이트
 
 fileprivate struct FileWriter: TextOutputStream {
     let fileHandle: FileHandle
@@ -390,9 +391,9 @@ public class BluetoothViewModel: NSObject, ObservableObject {
             return
         }
         
-        // Python 코드에서는 첫 4바이트를 timeRaw로 사용. 여기서는 일단 건너뜀.
-        // let timeRaw = UInt32(bytes[3]) << 24 | UInt32(bytes[2]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[0])
-        // let packetTimestamp = Double(timeRaw) / 32.768 / 1000.0
+        // 파이썬과 동일: 패킷 헤더에서 타임스탬프 추출
+        let timeRaw = UInt32(bytes[3]) << 24 | UInt32(bytes[2]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[0])
+        var timestamp = Double(timeRaw) / 32.768 / 1000.0 // ms 단위를 sec 단위로
 
         let dataWithoutHeaderCount = bytes.count - headerSize
         guard dataWithoutHeaderCount >= sampleSize else {
@@ -404,40 +405,42 @@ public class BluetoothViewModel: NSObject, ObservableObject {
 
         for i in 0..<sampleCount {
             let baseInFullPacket = headerSize + (i * sampleSize)
-            // Swift는 현재 2바이트씩 처리하는 로직 유지 (Python은 1바이트씩 처리했었음)
-            let x = Int16(bitPattern: UInt16(bytes[baseInFullPacket]) | (UInt16(bytes[baseInFullPacket+1]) << 8))
-            let y = Int16(bitPattern: UInt16(bytes[baseInFullPacket+2]) | (UInt16(bytes[baseInFullPacket+3]) << 8))
-            let z = Int16(bitPattern: UInt16(bytes[baseInFullPacket+4]) | (UInt16(bytes[baseInFullPacket+5]) << 8))
-            let csvTimestamp = Date().timeIntervalSince1970 // CSV용 타임스탬프 (패킷 타임스탬프를 쓸 수도 있음)
+            // 파이썬과 동일: 홀수 번째 바이트만 사용 (1, 3, 5번째)
+            let x = Int(bytes[baseInFullPacket + 1])  // data[i+1]
+            let y = Int(bytes[baseInFullPacket + 3])  // data[i+3] 
+            let z = Int(bytes[baseInFullPacket + 5])  // data[i+5]
             
             // 녹화 상태와 관계없이 터미널에 샘플 값 출력 (Live View)
             print("[ACCEL Sample (Live)] X: \(x), Y: \(y), Z: \(z)")
 
             if isRecording {
                 if var accelXArray = rawDataDict["accelX"] as? [Int] {
-                    accelXArray.append(Int(x))
+                    accelXArray.append(x)
                     rawDataDict["accelX"] = accelXArray
                 }
                 if var accelYArray = rawDataDict["accelY"] as? [Int] {
-                    accelYArray.append(Int(y))
+                    accelYArray.append(y)
                     rawDataDict["accelY"] = accelYArray
                 }
                 if var accelZArray = rawDataDict["accelZ"] as? [Int] {
-                    accelZArray.append(Int(z))
+                    accelZArray.append(z)
                     rawDataDict["accelZ"] = accelZArray
                 }
                 
-                // ACC CSV에 기록
+                // ACC CSV에 기록 (파이썬과 동일한 타임스탬프 사용)
                 if var writer = accelCsvWriter {
                     // timestamp,ACCEL_x,ACCEL_y,ACCEL_z
-                    let line = "\(csvTimestamp),\(Int(x)),\(Int(y)),\(Int(z))\n"
+                    let line = "\(timestamp),\(x),\(y),\(z)\n"
                     writer.write(line)
                 }
+                
+                // 파이썬과 동일: 다음 샘플 타임스탬프 증가 (ACC_SAMPLE_RATE 가정)
+                timestamp += 1.0 / ACC_SAMPLE_RATE
             }
 
              if i == sampleCount - 1 {
                 DispatchQueue.main.async {
-                    self.lastAccelReading = (x: x, y: y, z: z)
+                    self.lastAccelReading = (x: Int16(x), y: Int16(y), z: Int16(z))
                 }
             }
         }
