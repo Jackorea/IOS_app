@@ -270,30 +270,36 @@ public class BluetoothViewModel: NSObject, ObservableObject {
             return
         }
 
+        // 파이썬과 동일: 패킷 헤더에서 타임스탬프 추출
+        let timeRaw = UInt32(bytes[3]) << 24 | UInt32(bytes[2]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[0])
+        var timestamp = Double(timeRaw) / 32.768 / 1000.0 // ms 단위를 sec 단위로
+
         for i in stride(from: 4, to: 172, by: 6) {
             let red = Int(bytes[i]) << 16 | Int(bytes[i+1]) << 8 | Int(bytes[i+2])
             let ir  = Int(bytes[i+3]) << 16 | Int(bytes[i+4]) << 8 | Int(bytes[i+5])
-            let csvTimestamp = Date().timeIntervalSince1970 // CSV용 타임스탬프
+            
+            // 파이썬과 동일: data_buffer에 데이터 추가
+            if var ppgRedArray = rawDataDict["ppgRed"] as? [Int] {
+                ppgRedArray.append(red)
+                rawDataDict["ppgRed"] = ppgRedArray
+            }
+            if var ppgIrArray = rawDataDict["ppgIr"] as? [Int] {
+                ppgIrArray.append(ir)
+                rawDataDict["ppgIr"] = ppgIrArray
+            }
             
             // 녹화 상태와 관계없이 터미널에 샘플 값 출력 (Live View)
             print("[PPG Sample (Live)] Red: \(red), IR: \(ir)")
 
+            // 파이썬과 동일: 녹화 중일 때만 CSV에 기록
             if isRecording {
-                if var ppgRedArray = rawDataDict["ppgRed"] as? [Int] {
-                    ppgRedArray.append(red)
-                    rawDataDict["ppgRed"] = ppgRedArray
-                }
-                if var ppgIrArray = rawDataDict["ppgIr"] as? [Int] {
-                    ppgIrArray.append(ir)
-                    rawDataDict["ppgIr"] = ppgIrArray
-                }
-                
-                // PPG CSV에 기록
                 if var writer = ppgCsvWriter {
                     // timestamp,PPG_red,PPG_ir
-                    let line = "\(csvTimestamp),\(red),\(ir)\n"
+                    let line = "\(timestamp),\(red),\(ir)\n"
                     writer.write(line)
                 }
+                // 파이썬과 동일: 다음 샘플 타임스탬프 증가
+                timestamp += 1.0 / PPG_SAMPLE_RATE
             }
             
             DispatchQueue.main.async {
