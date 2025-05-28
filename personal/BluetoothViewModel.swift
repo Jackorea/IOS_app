@@ -5,7 +5,7 @@ import CoreBluetooth
 // PPG 관련 전역 변수 및 타입 정의
 private var PPG_SAMPLE_RATE: Double = 50.0
 private var EEG_SAMPLE_RATE: Double = 250.0
-private var ACC_SAMPLE_RATE: Double = 50.0  // 파이썬과 동일한 가속도계 샘플링 레이트
+private var ACC_SAMPLE_RATE: Double = 30.0
 
 fileprivate struct FileWriter: TextOutputStream {
     let fileHandle: FileHandle
