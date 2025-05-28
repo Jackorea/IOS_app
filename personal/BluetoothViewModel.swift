@@ -4,6 +4,7 @@ import CoreBluetooth
 
 // PPG 관련 전역 변수 및 타입 정의
 private var PPG_SAMPLE_RATE: Double = 50.0
+private var EEG_SAMPLE_RATE: Double = 250.0
 
 fileprivate struct FileWriter: TextOutputStream {
     let fileHandle: FileHandle
@@ -129,7 +130,7 @@ public class BluetoothViewModel: NSObject, ObservableObject {
         FileManager.default.createFile(atPath: eegCsvURL.path, contents: nil, attributes: nil)
         if let handle = try? FileHandle(forWritingTo: eegCsvURL) {
             var writer = FileWriter(fileHandle: handle)
-            writer.write("timestamp,EEG_ch1_raw,EEG_ch2_raw,EEG_ch1,EEG_ch2,EEG_leadOff\n")
+            writer.write("timestamp,ch1Raw,ch2Raw,ch1uV,ch2uV,leadOffNormalized\n")
             eegCsvWriter = writer
         }
         
@@ -304,70 +305,44 @@ public class BluetoothViewModel: NSObject, ObservableObject {
     public func handleEEGData(_ data: Data) {
         print("handleEEGData called, data count: \(data.count)")
         let bytes = [UInt8](data)
-        let headerSize = 4
-        let sampleSize = 7 // Python 코드 기준: LeadOff(1) + CH1(3) + CH2(3)
         
-        guard bytes.count >= headerSize + sampleSize else { 
-            print("EEG packet too short (even for header + 1 sample): \(bytes.count) bytes. Expected at least \(headerSize + sampleSize) bytes.")
+        // Python과 동일: 179바이트 고정 (4바이트 헤더 + 25개 샘플 * 7바이트)
+        guard bytes.count == 179 else {
+            print("EEG packet length invalid: \(bytes.count) bytes (expected 179).")
             return
         }
         
-        // Python 코드에서는 첫 4바이트를 timeRaw로 사용. 여기서는 일단 건너뜀.
-        // let timeRaw = UInt32(bytes[3]) << 24 | UInt32(bytes[2]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[0])
-        // let packetTimestamp = Double(timeRaw) / 32.768 / 1000.0
-
-        let dataWithoutHeaderCount = bytes.count - headerSize
-        guard dataWithoutHeaderCount >= sampleSize else {
-            print("EEG packet has header but not enough data for one sample: \(bytes.count) bytes.")
-            return
-        }
+        // Python과 동일: 패킷 헤더에서 타임스탬프 추출
+        let timeRaw = UInt32(bytes[3]) << 24 | UInt32(bytes[2]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[0])
+        var timestamp = Double(timeRaw) / 32.768 / 1000.0 // ms 단위를 sec 단위로
         
-        let sampleCount = dataWithoutHeaderCount / sampleSize 
-        if dataWithoutHeaderCount % sampleSize != 0 {
-            // Python 코드 구조를 적용하면 이 경고는 발생하지 않아야 함
-            print("Warning: EEG data length after header (\(dataWithoutHeaderCount)) is not a multiple of sample size (\(sampleSize)). Processing \(sampleCount) samples.")
-        }
-        
-        for i in 0..<sampleCount {
-            let baseInFullPacket = headerSize + (i * sampleSize)
+        // Python과 동일: 4바이트부터 179바이트까지 7바이트씩 처리 (25개 샘플)
+        for i in stride(from: 4, to: 179, by: 7) {
+            // lead-off (1바이트) - 센서 연결 상태 정규화
+            let leadOffRaw = bytes[i]
+            let leadOffNormalized = leadOffRaw > 0 ? 1 : 0  // 하나라도 떨어져 있으면 1, 모두 정상이면 0
             
-            let leadOffByte = bytes[baseInFullPacket] // 1 byte
-            let leadOff = leadOffByte != 0
+            // CH1: 3 bytes (Big Endian)
+            var ch1Raw = Int32(bytes[i+1]) << 16 | Int32(bytes[i+2]) << 8 | Int32(bytes[i+3])
             
-            // CH1: 3 bytes (bytes[base+1], bytes[base+2], bytes[base+3])
-            let ch1Byte1 = bytes[baseInFullPacket+1]
-            let ch1Byte2 = bytes[baseInFullPacket+2]
-            let ch1Byte3 = bytes[baseInFullPacket+3]
+            // CH2: 3 bytes (Big Endian)  
+            var ch2Raw = Int32(bytes[i+4]) << 16 | Int32(bytes[i+5]) << 8 | Int32(bytes[i+6])
             
-            // Big Endian: byte1 is MSB, byte3 is LSB
-            var ch1Raw = (Int32(ch1Byte1) << 16) | (Int32(ch1Byte2) << 8) | Int32(ch1Byte3)
-            
-            if (ch1Raw & 0x00800000) != 0 { // 24-bit MSB check for sign
-                ch1Raw |= ~0x00FFFFFF // Sign extend for 24-bit negative number
+            // Python과 동일: 24bit signed 처리 (MSB 기준 음수 보정)
+            if (ch1Raw & 0x800000) != 0 {
+                ch1Raw -= 0x1000000
+            }
+            if (ch2Raw & 0x800000) != 0 {
+                ch2Raw -= 0x1000000
             }
             
-            // CH2: 3 bytes (bytes[base+4], bytes[base+5], bytes[base+6])
-            let ch2Byte1 = bytes[baseInFullPacket+4]
-            let ch2Byte2 = bytes[baseInFullPacket+5]
-            let ch2Byte3 = bytes[baseInFullPacket+6]
+            // Python과 동일: 전압값(uV)로 변환
+            let ch1uV = Double(ch1Raw) * 4.033 / 12.0 / Double(0x7FFFFF) * 1e6
+            let ch2uV = Double(ch2Raw) * 4.033 / 12.0 / Double(0x7FFFFF) * 1e6
             
-            // Big Endian: byte1 is MSB, byte3 is LSB
-            var ch2Raw = (Int32(ch2Byte1) << 16) | (Int32(ch2Byte2) << 8) | Int32(ch2Byte3)
-            
-            if (ch2Raw & 0x00800000) != 0 { // 24-bit MSB check for sign
-                ch2Raw |= ~0x00FFFFFF // Sign extend for 24-bit negative number
-            }
-            
-            // Python: ch1_uv = ch1_raw * 4.033 / 12 / (2**23 - 1) * 1e6
-            // (2**23 - 1) is 8388607
-            let scaleFactor = (4.033 / 12.0 / 8388607.0) * 1_000_000.0
-            let ch1uV = Double(ch1Raw) * scaleFactor
-            let ch2uV = Double(ch2Raw) * scaleFactor
-            
-            let csvTimestamp = Date().timeIntervalSince1970 // CSV용 타임스탬프
-
-            // 녹화 상태와 관계없이 터미널에 샘플 값 출력 (Live View)
-            print("[EEG Sample (Live)] CH1_raw: \(ch1Raw), CH2_raw: \(ch2Raw), CH1: \(ch1uV) µV, CH2: \(ch2uV) µV, LeadOff: \(leadOffByte == 0 ? 0 : 1)")
+            // 녹화 상태와 관계없이 터미널에 샘플 값 출력 (Live View) - 개선된 출력
+            let connectionStatus = leadOffNormalized == 0 ? "✅ Connected" : "⚠️ Disconnected"
+            print("[EEG Sample (Live)] CH1_raw: \(ch1Raw), CH2_raw: \(ch2Raw), CH1: \(ch1uV) µV, CH2: \(ch2uV) µV, LeadOff: \(leadOffNormalized) (\(connectionStatus))")
             
             if isRecording {
                 if var eegCh1Array = rawDataDict["eegChannel1"] as? [Double] {
@@ -379,21 +354,25 @@ public class BluetoothViewModel: NSObject, ObservableObject {
                     rawDataDict["eegChannel2"] = eegCh2Array
                 }
                 if var eegLeadOffArray = rawDataDict["eegLeadOff"] as? [Int] {
-                    eegLeadOffArray.append(leadOffByte == 0 ? 0 : 1)
+                    eegLeadOffArray.append(leadOffNormalized)  // 정규화된 값 저장
                     rawDataDict["eegLeadOff"] = eegLeadOffArray
                 }
                 
-                // EEG CSV에 기록
+                // EEG CSV에 기록 (헤더 순서와 일치하도록 수정)
                 if var writer = eegCsvWriter {
-                    // timestamp,EEG_ch1_raw,EEG_ch2_raw,EEG_ch1,EEG_ch2,EEG_leadOff
-                    let line = "\(csvTimestamp),\(ch1Raw),\(ch2Raw),\(ch1uV),\(ch2uV),\(leadOffByte == 0 ? 0 : 1)\n"
+                    let line = "\(timestamp),\(ch1Raw),\(ch2Raw),\(ch1uV),\(ch2uV),\(leadOffNormalized)\n"
                     writer.write(line)
                 }
+                
+                // Python과 동일: 다음 샘플 타임스탬프 증가 (EEG_SAMPLE_RATE 가정: 250Hz)
+                timestamp += 1.0 / EEG_SAMPLE_RATE
             }
-
-            if i == sampleCount - 1 {
+            
+            // UI 업데이트는 마지막 샘플에서만 (성능 최적화)
+            if i == 172 { // 마지막 샘플 (4 + 24*7 = 172)
                 DispatchQueue.main.async {
-                    self.lastEEGReading = (ch1: ch1uV, ch2: ch2uV, leadOff: leadOff)
+                    // UI에서는 Boolean 변환 사용
+                    self.lastEEGReading = (ch1: ch1uV, ch2: ch2uV, leadOff: leadOffNormalized == 1)
                 }
             }
         }
@@ -422,11 +401,6 @@ public class BluetoothViewModel: NSObject, ObservableObject {
         }
         
         let sampleCount = dataWithoutHeaderCount / sampleSize
-        if dataWithoutHeaderCount % sampleSize != 0 {
-            // 이 경고는 Python 코드 구조를 적용하면 발생하지 않아야 함
-            // 하지만 만약 발생한다면, 헤더 이후의 데이터가 샘플 크기의 배수가 아니라는 의미
-            print("Warning: ACCEL data length after header (\(dataWithoutHeaderCount)) is not a multiple of sample size (\(sampleSize)). Processing \(sampleCount) samples.")
-        }
 
         for i in 0..<sampleCount {
             let baseInFullPacket = headerSize + (i * sampleSize)
