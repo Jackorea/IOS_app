@@ -494,6 +494,96 @@ private extension DateFormatter {
 
 // MARK: - Protocols
 
+/// Protocol for platform-agnostic sensor data sources.
+///
+/// This protocol abstracts the underlying hardware communication layer,
+/// allowing the main BluetoothKit to work with different types of sensor connections.
+public protocol SensorDataSource: AnyObject, Sendable {
+    /// Start scanning for available sensor devices.
+    func startScanning()
+    
+    /// Stop scanning for devices.
+    func stopScanning()
+    
+    /// Connect to a specific sensor device.
+    /// - Parameter device: The device to connect to
+    func connect(to device: SensorDevice)
+    
+    /// Disconnect from the current device.
+    func disconnect()
+    
+    /// Set the delegate for receiving sensor data.
+    /// - Parameter delegate: The delegate to receive sensor data callbacks
+    func setSensorDataDelegate(_ delegate: SensorDataDelegate?)
+    
+    /// Enable or disable automatic reconnection.
+    /// - Parameter enabled: Whether to enable auto-reconnection
+    func setAutoReconnect(enabled: Bool)
+    
+    /// Set the delegate for data source events.
+    /// - Parameter delegate: The delegate to receive data source events
+    func setDataSourceDelegate(_ delegate: DataSourceDelegate?)
+}
+
+/// Protocol for data source event callbacks.
+public protocol DataSourceDelegate: AnyObject, Sendable {
+    /// Called when the data source connection state changes.
+    /// - Parameter state: The new connection state
+    func dataSourceDidUpdateState(_ state: ConnectionState)
+    
+    /// Called when the list of available devices is updated.
+    /// - Parameter devices: The updated list of available devices
+    func dataSourceDidUpdateDevices(_ devices: [SensorDevice])
+    
+    /// Called when successfully connected to a device.
+    /// - Parameter device: The connected device
+    func dataSourceDidConnect(to device: SensorDevice)
+    
+    /// Called when disconnected from a device.
+    /// - Parameters:
+    ///   - device: The disconnected device
+    ///   - error: Optional error if disconnection was unexpected
+    func dataSourceDidDisconnect(from device: SensorDevice, error: Error?)
+}
+
+/// Represents a generic sensor device, platform-agnostic.
+public struct SensorDevice: Identifiable, Equatable, Sendable {
+    /// Unique identifier for the device
+    public let id: String
+    
+    /// Display name of the device
+    public let name: String
+    
+    /// Signal strength indicator (e.g., RSSI for Bluetooth)
+    public let signalStrength: Int?
+    
+    /// Type of device/connection
+    public let deviceType: DeviceType
+    
+    /// Additional metadata about the device
+    public let metadata: [String: String]
+    
+    public init(id: String, name: String, signalStrength: Int? = nil, deviceType: DeviceType = .bluetooth, metadata: [String: String] = [:]) {
+        self.id = id
+        self.name = name
+        self.signalStrength = signalStrength
+        self.deviceType = deviceType
+        self.metadata = metadata
+    }
+    
+    public static func == (lhs: SensorDevice, rhs: SensorDevice) -> Bool {
+        return lhs.id == rhs.id
+    }
+}
+
+/// Device type enumeration
+public enum DeviceType: String, Sendable, CaseIterable {
+    case bluetooth = "bluetooth"
+    case usb = "usb"
+    case network = "network"
+    case simulator = "simulator"
+}
+
 public protocol SensorDataDelegate: AnyObject, Sendable {
     func didReceiveEEGData(_ reading: EEGReading)
     func didReceivePPGData(_ reading: PPGReading)
