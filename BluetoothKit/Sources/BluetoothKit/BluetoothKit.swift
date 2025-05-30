@@ -77,6 +77,11 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     /// When `true`, all received sensor data is being saved to files.
     @Published public var isRecording: Bool = false
     
+    /// Whether auto-reconnection is currently enabled.
+    ///
+    /// When `true`, the library will automatically attempt to reconnect if connection is lost.
+    @Published public var isAutoReconnectEnabled: Bool = true
+    
     // Latest sensor readings for UI display
     
     /// The most recent EEG (electroencephalogram) reading.
@@ -152,6 +157,9 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
         self.logger = logger
         self.bluetoothManager = BluetoothManager(configuration: configuration, logger: logger)
         self.dataRecorder = DataRecorder(logger: logger)
+        
+        // Initialize auto-reconnect setting from configuration
+        self.isAutoReconnectEnabled = configuration.autoReconnectEnabled
         
         setupDelegates()
         updateRecordedFiles()
@@ -323,6 +331,7 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     /// ```
     public func setAutoReconnect(enabled: Bool) {
         log("Auto-reconnect \(enabled ? "enabled" : "disabled")", level: .info)
+        isAutoReconnectEnabled = enabled
         bluetoothManager.enableAutoReconnect(enabled)
     }
     

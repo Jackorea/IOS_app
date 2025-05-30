@@ -7,9 +7,9 @@ struct EnhancedStatusCardView: View {
     @ObservedObject var bluetoothKit: BluetoothKit
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
+            // Connection Status Header
             HStack {
-                // Connection Status Icon
                 Image(systemName: connectionIcon)
                     .font(.system(size: 24))
                     .foregroundColor(connectionColor)
@@ -19,12 +19,6 @@ struct EnhancedStatusCardView: View {
                     Text(bluetoothKit.connectionStatusDescription)
                         .font(.headline)
                         .foregroundColor(.primary)
-                    
-                    if bluetoothKit.isConnected {
-                        Text("Ready for data collection")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
                 }
                 
                 Spacer()
@@ -42,16 +36,96 @@ struct EnhancedStatusCardView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity)
             
-            // Progress indicator for scanning
-            if bluetoothKit.isScanning {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .blue))
-                    .scaleEffect(1.2)
-            }
-            
-            // Data rate information when connected
-            if bluetoothKit.isConnected {
+            if !bluetoothKit.isConnected {
+                // Scanning Controls
+                VStack(spacing: 12) {
+                    if bluetoothKit.isScanning {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                        
+                        Button("Stop Scanning") {
+                            bluetoothKit.stopScanning()
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                    } else {
+                        Button("Start Scanning") {
+                            bluetoothKit.startScanning()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.blue)
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Auto-reconnect toggle
+                Divider()
+                
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                        .foregroundColor(.blue)
+                        .font(.subheadline)
+                    
+                    Text("Auto-reconnect")
+                        .font(.subheadline)
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: $bluetoothKit.isAutoReconnectEnabled)
+                        .labelsHidden()
+                        .onChange(of: bluetoothKit.isAutoReconnectEnabled) { newValue in
+                            bluetoothKit.setAutoReconnect(enabled: newValue)
+                        }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 4)
+                
+                // Device List
+                if !bluetoothKit.discoveredDevices.isEmpty {
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Discovered Devices")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                        
+                        ForEach(bluetoothKit.discoveredDevices, id: \.id) { device in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(device.name)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                }
+                                
+                                Spacer()
+                                
+                                Button("Connect") {
+                                    bluetoothKit.connect(to: device)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.blue)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.blue.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                                    )
+                            )
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            } else {
+                // Data rate information when connected
                 Divider()
                 
                 HStack {
@@ -85,6 +159,7 @@ struct EnhancedStatusCardView: View {
                         icon: "battery.75"
                     )
                 }
+                .frame(maxWidth: .infinity)
             }
         }
         .frame(maxWidth: .infinity)

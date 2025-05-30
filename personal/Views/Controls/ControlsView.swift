@@ -5,7 +5,6 @@ import BluetoothKit
 
 struct ControlsView: View {
     @ObservedObject var bluetoothKit: BluetoothKit
-    @State private var autoReconnectEnabled: Bool = true
     
     var body: some View {
         VStack(spacing: 12) {
@@ -19,12 +18,13 @@ struct ControlsView: View {
                 
                 Spacer()
                 
-                Toggle("", isOn: $autoReconnectEnabled)
+                Toggle("", isOn: $bluetoothKit.isAutoReconnectEnabled)
                     .labelsHidden()
-                    .onChange(of: autoReconnectEnabled) { newValue in
+                    .onChange(of: bluetoothKit.isAutoReconnectEnabled) { newValue in
                         bluetoothKit.setAutoReconnect(enabled: newValue)
                     }
             }
+            .frame(maxWidth: .infinity)
             .padding(.horizontal)
             
             // Connection controls - only show disconnect when connected
@@ -40,6 +40,7 @@ struct ControlsView: View {
                 .padding(.horizontal)
             }
         }
+        .frame(maxWidth: .infinity)
         .padding(.vertical)
         .background(
             RoundedRectangle(cornerRadius: 16)

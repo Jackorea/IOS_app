@@ -15,6 +15,7 @@ struct AccelerometerDataCard: View {
                     .foregroundColor(.blue)
                 Spacer()
             }
+            .frame(maxWidth: .infinity)
             
             HStack(spacing: 20) {
                 VStack {
@@ -25,6 +26,7 @@ struct AccelerometerDataCard: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                 }
+                .frame(maxWidth: .infinity)
                 
                 VStack {
                     Text("Y")
@@ -34,6 +36,7 @@ struct AccelerometerDataCard: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                 }
+                .frame(maxWidth: .infinity)
                 
                 VStack {
                     Text("Z")
@@ -43,8 +46,11 @@ struct AccelerometerDataCard: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                 }
+                .frame(maxWidth: .infinity)
             }
+            .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)

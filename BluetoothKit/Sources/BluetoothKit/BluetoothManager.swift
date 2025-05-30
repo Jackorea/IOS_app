@@ -33,7 +33,8 @@ public class BluetoothManager: NSObject, @unchecked Sendable {
     
     // Auto-reconnection state
     private var lastConnectedPeripheralIdentifier: UUID?
-    private var userInitiatedDisconnect: Bool = false
+    private var userInitiatedDisconnect = false
+    private var isAutoReconnectEnabled: Bool
     
     // MARK: - Initialization
     
@@ -42,15 +43,17 @@ public class BluetoothManager: NSObject, @unchecked Sendable {
     /// - Parameters:
     ///   - configuration: Sensor configuration settings
     ///   - logger: Logger implementation for debugging
-    public init(configuration: SensorConfiguration = .default, logger: BluetoothKitLogger = DefaultLogger()) {
+    public init(configuration: SensorConfiguration, logger: BluetoothKitLogger) {
         self.configuration = configuration
         self.logger = logger
         self.dataParser = SensorDataParser(configuration: configuration)
+        self.isAutoReconnectEnabled = configuration.autoReconnectEnabled
+        
         super.init()
         
-        // Initialize CBCentralManager on main queue for proper delegate handling
-        centralManager = CBCentralManager(delegate: self, queue: .main)
-        log("BluetoothManager initialized", level: .debug)
+        centralManager = CBCentralManager(delegate: self, queue: nil)
+        
+        log("BluetoothManager initialized", level: .info)
     }
     
     // MARK: - Public Interface
@@ -120,11 +123,47 @@ public class BluetoothManager: NSObject, @unchecked Sendable {
     }
     
     public func enableAutoReconnect(_ enabled: Bool) {
-        // This is handled through the configuration, but we can update the behavior
-        if !enabled {
-            lastConnectedPeripheralIdentifier = nil
+        let previousState = isAutoReconnectEnabled
+        isAutoReconnectEnabled = enabled
+        log("Auto-reconnect \(enabled ? "enabled" : "disabled") (was \(previousState ? "enabled" : "disabled"))", level: .info)
+        
+        if enabled {
+            // If auto-reconnect is being enabled and we have a last connected device,
+            // and we're currently disconnected, attempt to reconnect
+            if let lastPeripheralId = lastConnectedPeripheralIdentifier,
+               !isConnected,
+               centralManager.state == .poweredOn {
+                
+                // Find the peripheral from discovered devices or try to retrieve it
+                if let peripheral = discoveredDevices.first(where: { $0.peripheral.identifier == lastPeripheralId })?.peripheral {
+                    connectionState = .reconnecting(peripheral.name ?? "Unknown Device")
+                    centralManager.connect(peripheral, options: nil)
+                    log("Auto-reconnect triggered: attempting to reconnect to \(peripheral.name ?? "Unknown Device")", level: .info)
+                } else {
+                    // If the peripheral is not in discovered devices, try to retrieve it
+                    let peripherals = centralManager.retrievePeripherals(withIdentifiers: [lastPeripheralId])
+                    if let peripheral = peripherals.first {
+                        connectionState = .reconnecting(peripheral.name ?? "Unknown Device")
+                        centralManager.connect(peripheral, options: nil)
+                        log("Auto-reconnect triggered: attempting to reconnect to retrieved peripheral \(peripheral.name ?? "Unknown Device")", level: .info)
+                    }
+                }
+            }
+        } else {
+            // If auto-reconnect is being disabled, cancel any ongoing reconnection attempts
+            if case .reconnecting(let deviceName) = connectionState {
+                // Find the peripheral that we're trying to reconnect to and cancel the connection
+                if let lastPeripheralId = lastConnectedPeripheralIdentifier {
+                    let peripherals = centralManager.retrievePeripherals(withIdentifiers: [lastPeripheralId])
+                    if let peripheral = peripherals.first {
+                        centralManager.cancelPeripheralConnection(peripheral)
+                        log("Cancelled ongoing reconnection attempt to \(deviceName)", level: .info)
+                    }
+                }
+                connectionState = .disconnected
+            }
+            log("Auto-reconnect disabled - all automatic reconnection attempts will be blocked", level: .info)
         }
-        log("Auto-reconnect \(enabled ? "enabled" : "disabled")", level: .debug)
     }
     
     // MARK: - Private Methods
@@ -145,6 +184,15 @@ public class BluetoothManager: NSObject, @unchecked Sendable {
     }
     
     private func handleConnectionSuccess(_ peripheral: CBPeripheral) {
+        // Check if this connection should be allowed
+        // If auto-reconnect is disabled and this was not a user-initiated connection, cancel it
+        if case .reconnecting = connectionState, !isAutoReconnectEnabled {
+            log("Auto-reconnect is disabled, cancelling automatic connection to \(peripheral.name ?? "Unknown Device")", level: .info)
+            centralManager.cancelPeripheralConnection(peripheral)
+            connectionState = .disconnected
+            return
+        }
+        
         connectedPeripheral = peripheral
         lastConnectedPeripheralIdentifier = peripheral.identifier
         userInitiatedDisconnect = false
@@ -179,18 +227,23 @@ public class BluetoothManager: NSObject, @unchecked Sendable {
         
         // Handle auto-reconnection
         if !userInitiatedDisconnect,
-           configuration.autoReconnectEnabled,
            let lastID = lastConnectedPeripheralIdentifier,
            peripheral.identifier == lastID {
             
-            connectionState = .reconnecting(deviceName)
-            centralManager.connect(peripheral, options: nil)
-            log("Auto-reconnecting to \(deviceName)", level: .info)
+            if isAutoReconnectEnabled {
+                connectionState = .reconnecting(deviceName)
+                centralManager.connect(peripheral, options: nil)
+                log("Auto-reconnecting to \(deviceName)", level: .info)
+            } else {
+                connectionState = .disconnected
+                log("Auto-reconnect is disabled, not attempting to reconnect to \(deviceName)", level: .info)
+            }
         } else {
             connectionState = .disconnected
             if userInitiatedDisconnect {
                 lastConnectedPeripheralIdentifier = nil
                 userInitiatedDisconnect = false
+                log("User initiated disconnect, clearing last connected device", level: .debug)
             }
         }
         

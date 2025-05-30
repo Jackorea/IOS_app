@@ -24,33 +24,6 @@ struct RecordedFilesView: View {
                     )
                 } else {
                     List {
-                        // Summary section
-                        Section {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Image(systemName: "folder.fill")
-                                        .foregroundColor(.blue)
-                                    Text("Recordings Folder")
-                                        .font(.headline)
-                                    Spacer()
-                                    Button("Share All") {
-                                        shareAllFiles()
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .font(.caption)
-                                }
-                                
-                                Text("\(recordedFiles.count) files • \(totalFileSize)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Text("Location: Documents/")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.vertical, 4)
-                        }
-                        
                         // Files list
                         Section("Files") {
                             ForEach(groupedFiles.keys.sorted().reversed(), id: \.self) { dateString in
@@ -145,11 +118,6 @@ struct RecordedFilesView: View {
     
     private func shareFile(_ url: URL) {
         shareItems = [url]
-        showingShareSheet = true
-    }
-    
-    private func shareAllFiles() {
-        shareItems = recordedFiles
         showingShareSheet = true
     }
     

@@ -15,6 +15,7 @@ struct PPGDataCard: View {
                     .foregroundColor(.red)
                 Spacer()
             }
+            .frame(maxWidth: .infinity)
             
             HStack(spacing: 30) {
                 VStack {
@@ -25,6 +26,7 @@ struct PPGDataCard: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                 }
+                .frame(maxWidth: .infinity)
                 
                 VStack {
                     Text("IR")
@@ -34,8 +36,11 @@ struct PPGDataCard: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                 }
+                .frame(maxWidth: .infinity)
             }
+            .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)

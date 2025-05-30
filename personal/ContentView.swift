@@ -18,7 +18,6 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var bluetoothKit: BluetoothKit
-    @State private var showingSettings = false
     @State private var showingRecordedFiles = false
 
     init() {
@@ -27,35 +26,36 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 20) {
-                    // Enhanced Status Card
+                    // Enhanced Status Card (now includes scanning controls and device list)
                     EnhancedStatusCardView(bluetoothKit: bluetoothKit)
+                        .frame(maxWidth: .infinity)
                     
-                    // Real-time Data Display (only when connected)
+                    // Real-time Data Display and Controls (only when connected)
                     if bluetoothKit.isConnected {
                         SensorDataView(bluetoothKit: bluetoothKit)
+                            .frame(maxWidth: .infinity)
                         RecordingControlsView(bluetoothKit: bluetoothKit)
-                    } else {
-                        ScanningControlsView(bluetoothKit: bluetoothKit)
-                        DeviceListView(bluetoothKit: bluetoothKit)
+                            .frame(maxWidth: .infinity)
                     }
                     
-                    // Enhanced Controls
-                    ControlsView(bluetoothKit: bluetoothKit)
+                    // Enhanced Controls (only when connected)
+                    if bluetoothKit.isConnected {
+                        ControlsView(bluetoothKit: bluetoothKit)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
+                .frame(maxWidth: .infinity)
                 .padding()
             }
+            .clipped()
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingRecordedFiles = true }) {
                         Image(systemName: "folder.fill")
-                    }
-                    
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gear")
                     }
                 }
             }
@@ -64,9 +64,6 @@ struct ContentView: View {
                 Button("Close", role: .cancel) { }
             } message: {
                 Text("Please turn on Bluetooth to scan and connect to sensor devices.")
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView(bluetoothKit: bluetoothKit)
             }
             .sheet(isPresented: $showingRecordedFiles) {
                 RecordedFilesView(bluetoothKit: bluetoothKit)

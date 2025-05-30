@@ -1,42 +1,60 @@
 import SwiftUI
 import BluetoothKit
 
+// MARK: - Battery Data Card
+
 struct BatteryDataCard: View {
     let reading: BatteryReading
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: "battery.100")
-                    .foregroundColor(.green)
-                    .font(.title2)
-                Text("Battery")
+                Image(systemName: "battery.75")
+                    .foregroundColor(batteryColor)
+                Text("Battery Level")
                     .font(.headline)
-                    .foregroundColor(.green)
                 Spacer()
-            }
-            
-            VStack {
-                Text("Level")
-                    .font(.caption)
-                    .foregroundColor(.gray)
                 Text("\(reading.level)%")
                     .font(.title2)
-                    .fontWeight(.semibold)
+                    .fontWeight(.bold)
+                    .foregroundColor(batteryColor)
             }
+            .frame(maxWidth: .infinity)
+            
+            ProgressView(value: Double(reading.level), total: 100.0)
+                .progressViewStyle(LinearProgressViewStyle(tint: batteryColor))
+                .frame(maxWidth: .infinity)
+            
+            Text("Last updated: \(timeFormatter.string(from: reading.timestamp))")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.green.opacity(0.1))
+                .fill(Color.gray.opacity(0.1))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                        .stroke(batteryColor.opacity(0.3), lineWidth: 1)
                 )
         )
     }
-}
-
-#Preview {
-    BatteryDataCard(reading: BatteryReading(level: 75))
+    
+    private var timeFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .medium
+        return formatter
+    }
+    
+    private var batteryColor: Color {
+        if reading.level > 50 {
+            return .green
+        } else if reading.level > 20 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
 } 

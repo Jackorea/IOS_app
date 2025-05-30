@@ -24,13 +24,9 @@ struct RecordingControlsView: View {
                     .buttonStyle(.borderedProminent)
                 }
             }
-            
-            if !bluetoothKit.recordedFiles.isEmpty {
-                Text("\(bluetoothKit.recordedFiles.count) recorded files")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)

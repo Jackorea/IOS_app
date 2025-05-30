@@ -17,6 +17,7 @@ struct EEGDataCard: View {
                 Image(systemName: reading.leadOff ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                     .foregroundColor(reading.leadOff ? .red : .green)
             }
+            .frame(maxWidth: .infinity)
             
             HStack(spacing: 20) {
                 VStack {
@@ -27,6 +28,7 @@ struct EEGDataCard: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                 }
+                .frame(maxWidth: .infinity)
                 
                 VStack {
                     Text("CH2")
@@ -36,6 +38,7 @@ struct EEGDataCard: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                 }
+                .frame(maxWidth: .infinity)
                 
                 VStack {
                     Text("Status")
@@ -46,8 +49,11 @@ struct EEGDataCard: View {
                         .fontWeight(.semibold)
                         .foregroundColor(reading.leadOff ? .red : .green)
                 }
+                .frame(maxWidth: .infinity)
             }
+            .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
