@@ -1,0 +1,15 @@
+{
+  "originHash" : "9257698c4562db90f23489df0cd5deb15a25a3ca5367cb4933152fec889763db",
+  "pins" : [
+    {
+      "identity" : "ios_link_band_sdk",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Jackorea/IOS_link_band_sdk",
+      "state" : {
+        "branch" : "main",
+        "revision" : "a2495caf894c3f559082cb6d4544051ed0f0ef6d"
+      }
+    }
+  ],
+  "version" : 3
+}
