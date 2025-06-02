@@ -494,6 +494,61 @@ private extension DateFormatter {
 
 // MARK: - Protocols
 
+/// Delegate protocol for receiving real-time sensor data from BluetoothKit.
+///
+/// Implement this protocol to receive sensor data callbacks as data arrives from connected devices.
+///
+/// ## Example
+///
+/// ```swift
+/// class SensorHandler: BluetoothKitDelegate {
+///     func bluetoothKit(_ kit: BluetoothKit, didReceiveEEGReading reading: EEGReading) {
+///         print("EEG: CH1=\(reading.channel1), CH2=\(reading.channel2)")
+///     }
+///     
+///     func bluetoothKit(_ kit: BluetoothKit, didReceivePPGReading reading: PPGReading) {
+///         print("PPG: Red=\(reading.red), IR=\(reading.ir)")
+///     }
+/// }
+/// ```
+public protocol BluetoothKitDelegate: AnyObject {
+    /// Called when EEG data is received from the connected device.
+    /// - Parameters:
+    ///   - kit: The BluetoothKit instance
+    ///   - reading: The EEG reading containing 2-channel brain activity data
+    func bluetoothKit(_ kit: BluetoothKit, didReceiveEEGReading reading: EEGReading)
+    
+    /// Called when PPG data is received from the connected device.
+    /// - Parameters:
+    ///   - kit: The BluetoothKit instance
+    ///   - reading: The PPG reading containing red and infrared LED values
+    func bluetoothKit(_ kit: BluetoothKit, didReceivePPGReading reading: PPGReading)
+    
+    /// Called when accelerometer data is received from the connected device.
+    /// - Parameters:
+    ///   - kit: The BluetoothKit instance
+    ///   - reading: The accelerometer reading containing 3-axis motion data
+    func bluetoothKit(_ kit: BluetoothKit, didReceiveAccelerometerReading reading: AccelerometerReading)
+    
+    /// Called when battery level data is received from the connected device.
+    /// - Parameters:
+    ///   - kit: The BluetoothKit instance
+    ///   - reading: The battery reading containing charge level percentage
+    func bluetoothKit(_ kit: BluetoothKit, didReceiveBatteryReading reading: BatteryReading)
+    
+    /// Called when the connection state changes.
+    /// - Parameters:
+    ///   - kit: The BluetoothKit instance
+    ///   - state: The new connection state
+    func bluetoothKit(_ kit: BluetoothKit, didUpdateConnectionState state: ConnectionState)
+    
+    /// Called when a new device is discovered during scanning.
+    /// - Parameters:
+    ///   - kit: The BluetoothKit instance
+    ///   - device: The discovered device
+    func bluetoothKit(_ kit: BluetoothKit, didDiscoverDevice device: BluetoothDevice)
+}
+
 /// Protocol for platform-agnostic sensor data sources.
 ///
 /// This protocol abstracts the underlying hardware communication layer,

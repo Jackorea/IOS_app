@@ -1,53 +1,67 @@
-# BluetoothKit
+# BluetoothKit SDK
 
-**A powerful, type-safe Bluetooth Low Energy (BLE) library for iOS and macOS, designed for biomedical sensor applications.**
+A comprehensive, platform-agnostic Bluetooth Low Energy (BLE) SDK for connecting to sensor devices and collecting biomedical data.
 
-BluetoothKit provides a modern Swift interface for connecting to sensor devices and collecting real-time biomedical data including EEG, PPG, accelerometer, and battery readings. Built with SwiftUI in mind and fully compatible with iOS 13+ and macOS 10.15+.
+## 🎯 Pure SDK Design
+
+BluetoothKit is designed as a **pure data/logic SDK** without any UI dependencies. This allows for:
+
+- **Framework independence**: No SwiftUI or UIKit dependencies
+- **Platform flexibility**: Works on iOS, macOS, and other Apple platforms  
+- **Custom UI integration**: Build your own UI components using the provided data
+- **Clean architecture**: Separation of concerns between data logic and presentation
 
 ## ✨ Features
 
-### 📱 **SwiftUI-First Design**
-- Native `@ObservableObject` integration with `@Published` properties
-- Reactive UI updates for real-time sensor data
-- Modern iOS design patterns and concurrency support
-
-### 🔄 **Robust Connection Management**
-- Automatic device discovery with configurable filtering
-- Smart reconnection with exponential backoff
-- Connection state monitoring with detailed error reporting
-- Thread-safe operations with proper concurrency handling
-
-### 📊 **Multi-Sensor Support**
-- **EEG (Electroencephalogram)**: 2-channel brain activity monitoring
-- **PPG (Photoplethysmography)**: Heart rate and blood oxygen sensing  
-- **Accelerometer**: 3-axis motion and orientation tracking
-- **Battery**: Real-time power level monitoring
-
-### 💾 **Advanced Data Recording**
-- Timestamped CSV files for each sensor type
-- JSON export for complete session data
-- Configurable sample rates and data validation
-- Automatic file management and organization
-
-### ⚙️ **Highly Configurable**
-- Multiple preset configurations (Default, High Performance, Low Power)
-- Custom hardware parameter support
-- Flexible packet parsing for different sensor models
-- Comprehensive logging system with adjustable levels
+- **Real-time sensor data**: EEG, PPG, Accelerometer, Battery monitoring
+- **Delegate-based callbacks**: Receive data as it arrives from connected devices
+- **Automatic data recording**: Save sensor data to CSV files
+- **Connection management**: Auto-reconnection and state monitoring
+- **Device discovery**: Scan and filter Bluetooth devices
+- **Configuration flexibility**: Customizable sample rates and device settings
 
 ## 🚀 Quick Start
 
-### Installation
-
-Add BluetoothKit to your project as a Swift Package:
+### 1. Basic Usage
 
 ```swift
-dependencies: [
-    .package(url: "https://github.com/yourrepo/BluetoothKit.git", from: "2.0.0")
-]
+import BluetoothKit
+
+class SensorDataHandler: BluetoothKitDelegate {
+    func bluetoothKit(_ kit: BluetoothKit, didReceiveEEGReading reading: EEGReading) {
+        print("EEG: CH1=\(reading.channel1)µV, CH2=\(reading.channel2)µV")
+    }
+    
+    func bluetoothKit(_ kit: BluetoothKit, didReceivePPGReading reading: PPGReading) {
+        print("PPG: Red=\(reading.red), IR=\(reading.ir)")
+    }
+    
+    func bluetoothKit(_ kit: BluetoothKit, didUpdateConnectionState state: ConnectionState) {
+        print("Connection state: \(state.description)")
+    }
+    
+    func bluetoothKit(_ kit: BluetoothKit, didDiscoverDevice device: BluetoothDevice) {
+        print("Found device: \(device.name)")
+    }
+    
+    // Implement other delegate methods as needed...
+}
+
+// Setup
+let handler = SensorDataHandler()
+let bluetoothKit = BluetoothKit()
+bluetoothKit.delegate = handler
+
+// Start scanning for devices
+bluetoothKit.startScanning()
+
+// Connect to a device (from discovered devices)
+if let device = bluetoothKit.discoveredDevices.first {
+    bluetoothKit.connect(to: device)
+}
 ```
 
-### Basic Usage
+### 2. SwiftUI Integration
 
 ```swift
 import SwiftUI
@@ -55,393 +69,187 @@ import BluetoothKit
 
 struct ContentView: View {
     @StateObject private var bluetoothKit = BluetoothKit()
+    @StateObject private var dataHandler = SensorDataHandler()
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Connection Status
-            Text(bluetoothKit.connectionStatusDescription)
-                .font(.headline)
+        VStack {
+            Text("Connection: \(bluetoothKit.connectionState.description)")
             
-            // Scan for devices
             Button("Start Scanning") {
                 bluetoothKit.startScanning()
             }
-            .disabled(bluetoothKit.isScanning)
             
-            // Device list
-            List(bluetoothKit.discoveredDevices) { device in
-                HStack {
-                    Text(device.name)
-                    Spacer()
-                    Button("Connect") {
-                        bluetoothKit.connect(to: device)
-                    }
+            List(bluetoothKit.discoveredDevices, id: \.id) { device in
+                Button("Connect to \(device.name)") {
+                    bluetoothKit.connect(to: device)
                 }
-            }
-            
-            // Real-time data display
-            if let eegReading = bluetoothKit.latestEEGReading {
-                VStack {
-                    Text("EEG Data")
-                        .font(.subheadline)
-                    Text("CH1: \(eegReading.channel1, specifier: "%.1f") µV")
-                    Text("CH2: \(eegReading.channel2, specifier: "%.1f") µV")
-                }
-            }
-            
-            // Recording controls
-            if bluetoothKit.isConnected {
-                Button(bluetoothKit.isRecording ? "Stop Recording" : "Start Recording") {
-                    if bluetoothKit.isRecording {
-                        bluetoothKit.stopRecording()
-                    } else {
-                        bluetoothKit.startRecording()
-                    }
-                }
-                .buttonStyle(.borderedProminent)
             }
         }
-        .padding()
-        .alert("Bluetooth Required", isPresented: $bluetoothKit.showBluetoothOffAlert) {
-            Button("OK") { }
-        } message: {
-            Text("Please enable Bluetooth to connect to devices.")
+        .onAppear {
+            bluetoothKit.delegate = dataHandler
         }
     }
 }
 ```
 
-## 📋 Configuration
-
-### Preset Configurations
-
-BluetoothKit includes three preset configurations optimized for different use cases:
+### 3. Custom Configuration
 
 ```swift
-// Default: Balanced performance and battery life
-let defaultKit = BluetoothKit(configuration: .default)
-
-// High Performance: Maximum data quality for research
-let researchKit = BluetoothKit(configuration: .highPerformance)
-
-// Low Power: Extended battery life for long-term monitoring
-let monitoringKit = BluetoothKit(configuration: .lowPower)
-```
-
-### Custom Configuration
-
-For specialized hardware or custom requirements:
-
-```swift
-let customConfig = SensorConfiguration(
-    eegSampleRate: 1000.0,           // 1kHz EEG sampling
-    ppgSampleRate: 125.0,            // 125Hz PPG sampling
-    accelerometerSampleRate: 50.0,   // 50Hz accelerometer
-    deviceNamePrefix: "MyDevice-",   // Custom device filter
-    eegVoltageReference: 3.3,        // 3.3V reference voltage
-    eegGain: 24.0,                   // 24x amplifier gain
-    eegValidRange: -500.0...500.0    // Extended valid range
+let config = SensorConfiguration(
+    eegSampleRate: 500.0,
+    ppgSampleRate: 100.0,
+    deviceNamePrefix: "MyDevice-",
+    autoReconnectEnabled: true
 )
 
-let customKit = BluetoothKit(
-    configuration: customConfig,
-    logger: DefaultLogger(minimumLevel: .debug)
-)
+let bluetoothKit = BluetoothKit(configuration: config)
 ```
 
-## 📖 API Documentation
+## 📱 UI Components (Separate from SDK)
 
-### Core Classes
+The main app includes example UI components that work with the BluetoothKit SDK:
 
-#### `BluetoothKit`
-The main interface for all Bluetooth operations. Conforms to `ObservableObject` for SwiftUI integration.
+- `EnhancedStatusCardView`: Complete connection status and control interface
+- `DataRateIndicator`: Visual indicators for sensor data reception
 
-**Key Properties:**
-- `discoveredDevices: [BluetoothDevice]` - Array of found devices
-- `connectionState: ConnectionState` - Current connection status
-- `isScanning: Bool` - Whether actively scanning
-- `isRecording: Bool` - Whether recording data
-- `latestEEGReading: EEGReading?` - Most recent EEG data
-- `latestPPGReading: PPGReading?` - Most recent PPG data
-- `latestAccelerometerReading: AccelerometerReading?` - Most recent motion data
-- `latestBatteryReading: BatteryReading?` - Most recent battery level
+These are provided as examples - you can build your own UI components using the SDK's published properties and delegate callbacks.
 
-**Key Methods:**
-- `startScanning()` - Begin device discovery
-- `stopScanning()` - Stop device discovery
-- `connect(to: BluetoothDevice)` - Connect to specific device
-- `disconnect()` - Disconnect from current device
-- `startRecording()` - Begin data recording
-- `stopRecording()` - Stop data recording
-- `setAutoReconnect(enabled: Bool)` - Configure reconnection behavior
+## 🔧 Architecture
 
-#### `SensorConfiguration`
-Comprehensive configuration for sensor behavior and data processing.
+```
+BluetoothKit SDK (Pure Logic)
+├── BluetoothKit.swift          # Main SDK interface
+├── BluetoothManager.swift      # Bluetooth connectivity
+├── Models.swift               # Data models & protocols
+├── DataRecorder.swift         # CSV data recording
+└── SensorDataParser.swift     # Raw data parsing
 
-**Sample Rate Settings:**
-- `eegSampleRate: Double` - EEG sampling frequency (Hz)
-- `ppgSampleRate: Double` - PPG sampling frequency (Hz)
-- `accelerometerSampleRate: Double` - Accelerometer sampling frequency (Hz)
+Personal App (UI Layer)
+├── Views/StatusCard/          # UI components
+├── ContentView.swift          # Main app view
+└── personalApp.swift         # App entry point
+```
 
-**Hardware Parameters:**
-- `eegVoltageReference: Double` - ADC reference voltage
-- `eegGain: Double` - Amplifier gain setting
-- `eegResolution: Double` - ADC resolution factor
-- `deviceNamePrefix: String` - Device name filter
+## 📊 Data Types
 
-**Data Validation:**
-- `eegValidRange: ClosedRange<Double>` - Valid EEG signal range (µV)
-- `ppgMaxValue: Int` - Maximum valid PPG reading
-
-### Data Models
-
-#### `EEGReading`
+### EEG Reading
 ```swift
 struct EEGReading {
     let channel1: Double    // µV
     let channel2: Double    // µV  
-    let leadOff: Bool       // Electrode connection status
-    let timestamp: Date     // Sample timestamp
+    let leadOff: Bool      // Connection status
+    let timestamp: Date
 }
 ```
 
-#### `PPGReading`
+### PPG Reading
 ```swift
 struct PPGReading {
-    let red: Int           // Red LED reading
-    let ir: Int            // Infrared LED reading
-    let timestamp: Date    // Sample timestamp
+    let red: Int           // Red LED value
+    let ir: Int            // Infrared LED value
+    let timestamp: Date
 }
 ```
 
-#### `AccelerometerReading`
+### Accelerometer Reading
 ```swift
 struct AccelerometerReading {
-    let x: Int16          // X-axis acceleration
-    let y: Int16          // Y-axis acceleration
-    let z: Int16          // Z-axis acceleration
-    let timestamp: Date   // Sample timestamp
+    let x: Int16           // X-axis
+    let y: Int16           // Y-axis
+    let z: Int16           // Z-axis
+    let timestamp: Date
 }
 ```
 
-#### `BatteryReading`
+### Battery Reading
 ```swift
 struct BatteryReading {
-    let level: UInt8      // Battery percentage (0-100)
-    let timestamp: Date   // Reading timestamp
+    let level: UInt8       // 0-100%
+    let timestamp: Date
 }
 ```
 
-## 🔧 Advanced Usage
-
-### Custom Logging
-
-Implement custom logging for production applications:
+## 🎛️ Configuration Options
 
 ```swift
-struct ProductionLogger: BluetoothKitLogger {
-    func log(_ message: String, level: LogLevel, file: String, function: String, line: Int) {
-        // Send to analytics service, crash reporting, etc.
-        switch level {
-        case .error:
-            Analytics.recordError(message, file: file, line: line)
-        case .warning:
-            Analytics.recordWarning(message)
-        default:
-            break
-        }
-    }
+struct SensorConfiguration {
+    let eegSampleRate: Double              // Hz (125, 250, 500, 1000)
+    let ppgSampleRate: Double              // Hz (25, 50, 100)
+    let accelerometerSampleRate: Double    // Hz (10, 30, 50, 100)
+    let deviceNamePrefix: String           // Device filter
+    let autoReconnectEnabled: Bool         // Auto-reconnection
+    let eegVoltageReference: Double        // Volts (2.5, 3.3, 5.0)
+    let eegGain: Double                   // Amplification (1, 2, 4, 6, 8, 12, 24)
 }
-
-let bluetoothKit = BluetoothKit(logger: ProductionLogger())
 ```
 
-### Data Processing Pipeline
+## 🔗 Delegate Protocol
 
-Process sensor data in real-time:
+Implement `BluetoothKitDelegate` to receive real-time callbacks:
 
 ```swift
-class DataProcessor: ObservableObject {
-    @Published var heartRate: Double = 0
-    @Published var averageEEG: Double = 0
-    
-    private var ppgBuffer: [PPGReading] = []
-    private var eegBuffer: [EEGReading] = []
-    
-    func processEEG(_ reading: EEGReading) {
-        eegBuffer.append(reading)
-        
-        // Keep last 1000 samples (4 seconds at 250Hz)
-        if eegBuffer.count > 1000 {
-            eegBuffer.removeFirst()
-        }
-        
-        // Calculate average amplitude
-        let average = eegBuffer.map { ($0.channel1 + $0.channel2) / 2 }.reduce(0, +) / Double(eegBuffer.count)
-        
-        DispatchQueue.main.async {
-            self.averageEEG = average
-        }
-    }
-    
-    func processPPG(_ reading: PPGReading) {
-        ppgBuffer.append(reading)
-        
-        if ppgBuffer.count > 250 { // 5 seconds at 50Hz
-            ppgBuffer.removeFirst()
-        }
-        
-        // Simple heart rate calculation
-        let heartRate = calculateHeartRate(from: ppgBuffer)
-        
-        DispatchQueue.main.async {
-            self.heartRate = heartRate
-        }
-    }
-    
-    private func calculateHeartRate(from readings: [PPGReading]) -> Double {
-        // Implement peak detection algorithm
-        // This is a simplified example
-        return 75.0 // BPM
-    }
+protocol BluetoothKitDelegate: AnyObject {
+    func bluetoothKit(_ kit: BluetoothKit, didReceiveEEGReading reading: EEGReading)
+    func bluetoothKit(_ kit: BluetoothKit, didReceivePPGReading reading: PPGReading)
+    func bluetoothKit(_ kit: BluetoothKit, didReceiveAccelerometerReading reading: AccelerometerReading)
+    func bluetoothKit(_ kit: BluetoothKit, didReceiveBatteryReading reading: BatteryReading)
+    func bluetoothKit(_ kit: BluetoothKit, didUpdateConnectionState state: ConnectionState)
+    func bluetoothKit(_ kit: BluetoothKit, didDiscoverDevice device: BluetoothDevice)
 }
 ```
 
-### File Export and Sharing
-
-Access and share recorded data:
+## 📝 Data Recording
 
 ```swift
-func exportData() {
-    let recordingsURL = bluetoothKit.recordingsDirectory
-    let files = bluetoothKit.recordedFiles
-    
-    let activityController = UIActivityViewController(
-        activityItems: files,
-        applicationActivities: nil
-    )
-    
-    // Present sharing interface
-    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-       let window = windowScene.windows.first {
-        window.rootViewController?.present(activityController, animated: true)
-    }
+// Start recording (automatic CSV file creation)
+bluetoothKit.startRecording()
+
+// Stop recording
+bluetoothKit.stopRecording()
+
+// Access recorded files
+let files = bluetoothKit.recordedFiles
+for file in files {
+    print("Recorded: \(file.lastPathComponent)")
 }
 ```
 
-## 🛠️ Hardware Compatibility
+## 🛠️ Development
 
-BluetoothKit is designed for biomedical sensors with the following specifications:
+### Requirements
+- iOS 13.0+ / macOS 10.15+
+- Xcode 15.0+
+- Swift 6.0+
 
-### Supported Devices
-- **Default**: LXB-series sensors
-- **Configurable**: Any BLE device with GATT characteristics
-
-### Required Services & Characteristics
-- **EEG Service**: `df7b5d95-3afe-00a1-084c-b50895ef4f95`
-- **PPG Service**: `1cc50ec0-6967-9d84-a243-c2267f924d1f`
-- **Accelerometer Service**: `75c276c3-8f97-20bc-a143-b354244886d4`
-- **Battery Service**: `0000180f-0000-1000-8000-00805f9b34fb` (Standard)
-
-### Custom Hardware
-Easily adapt to new hardware by modifying `SensorUUID` and configuration parameters.
-
-## 📱 iOS Integration
-
-### Required Permissions
-
-Add to your `Info.plist`:
-
-```xml
-<key>NSBluetoothAlwaysUsageDescription</key>
-<string>This app uses Bluetooth to connect to biomedical sensors for data collection.</string>
-
-<key>NSBluetoothPeripheralUsageDescription</key>
-<string>This app needs Bluetooth access to communicate with sensor devices.</string>
-```
-
-### Background Processing
-
-For continuous monitoring, enable background capabilities:
-
-```xml
-<key>UIBackgroundModes</key>
-<array>
-    <string>bluetooth-central</string>
-</array>
-```
-
-## 🧪 Testing
-
-BluetoothKit includes comprehensive unit tests for all core functionality:
-
+### Building
 ```bash
-swift test
+# Clone the repository
+git clone <repository-url>
+cd personal
+
+# Open in Xcode
+open personal.xcodeproj
+
+# Or build via command line
+xcodebuild -project personal.xcodeproj -scheme personal build
 ```
 
-### Test Coverage
-- ✅ Sensor data parsing and validation
-- ✅ Configuration parameter handling  
-- ✅ Error handling and edge cases
-- ✅ Data model serialization
-- ✅ Connection state management
+## 📚 Examples
 
-### Mock Testing
-
-Use the included mock objects for UI testing:
-
-```swift
-#if DEBUG
-let mockKit = BluetoothKit(configuration: .default, logger: SilentLogger())
-// Populate with test data
-mockKit.latestEEGReading = EEGReading(channel1: 50.0, channel2: -30.0, leadOff: false)
-#endif
-```
+Check the `personal` app for complete implementation examples:
+- Real-time sensor data visualization
+- Connection management UI
+- Data recording and playback
+- Custom sensor configurations
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-1. Clone the repository
-2. Open in Xcode 15+
-3. Run tests: `⌘ + U`
-4. Build documentation: `⌘ + Control + Shift + D`
+1. Fork the repository
+2. Create your feature branch
+3. Make changes to the **BluetoothKit SDK only** (no UI dependencies)
+4. Add tests for new functionality
+5. Submit a pull request
 
 ## 📄 License
 
-BluetoothKit is available under the MIT license. See [LICENSE](LICENSE) for details.
-
-## 🆘 Support
-
-- 📚 [Documentation](https://yoursite.github.io/BluetoothKit)
-- 🐛 [Issue Tracker](https://github.com/yourrepo/BluetoothKit/issues)
-- 💬 [Discussions](https://github.com/yourrepo/BluetoothKit/discussions)
-- 📧 Email: support@yourcompany.com
-
-## 📊 Performance
-
-### Benchmarks (iPhone 12 Pro)
-- **EEG Processing**: 250Hz sustained with <1% CPU usage
-- **Memory Usage**: ~5MB baseline, scales with buffer size
-- **Battery Impact**: Minimal when using Low Power configuration
-- **Connection Reliability**: >99% uptime with auto-reconnection
-
-## 🔄 Version History
-
-### v2.0.0 (Current)
-- ✨ Complete API redesign with improved type safety
-- 🎯 Enhanced SwiftUI integration
-- ⚡ Better performance and memory management
-- 🔧 Flexible configuration system
-- 📊 Comprehensive documentation
-
-### v1.0.0
-- 🎉 Initial release
-- 📱 Basic BLE connectivity
-- 📊 EEG and PPG data support
-
----
-
-**Built with ❤️ for the biomedical research community** 
+[Your License Here] 

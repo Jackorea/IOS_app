@@ -59,7 +59,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .alert("Bluetooth is turned off", isPresented: $bluetoothKit.showBluetoothOffAlert) {
+            .alert("Bluetooth is turned off", isPresented: $bluetoothKit.isBluetoothDisabled) {
                 Button("Settings", action: openBluetoothSettings)
                 Button("Close", role: .cancel) { }
             } message: {

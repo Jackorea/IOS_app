@@ -3,6 +3,7 @@ import BluetoothKit
 
 // MARK: - Enhanced Status Card View
 
+/// Enhanced status card view that shows connection state and controls for BluetoothKit
 struct EnhancedStatusCardView: View {
     @ObservedObject var bluetoothKit: BluetoothKit
     
@@ -204,6 +205,7 @@ struct EnhancedStatusCardView: View {
     }
 }
 
+/// Data rate indicator component for showing sensor status
 struct DataRateIndicator: View {
     let title: String
     let hasData: Bool
