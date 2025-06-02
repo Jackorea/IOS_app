@@ -3,13 +3,13 @@ import BluetoothKit
 
 // MARK: - Enhanced Status Card View
 
-/// Enhanced status card view that shows connection state and controls for BluetoothKit
+/// BluetoothKit의 연결 상태와 컨트롤을 보여주는 향상된 상태 카드 뷰
 struct EnhancedStatusCardView: View {
     @ObservedObject var bluetoothKit: BluetoothKit
     
     var body: some View {
         VStack(spacing: 16) {
-            // Connection Status Header
+            // 연결 상태 헤더
             HStack {
                 Image(systemName: connectionIcon)
                     .font(.system(size: 24))
@@ -24,13 +24,13 @@ struct EnhancedStatusCardView: View {
                 
                 Spacer()
                 
-                // Recording Status
+                // 녹화 상태
                 if bluetoothKit.isRecording {
                     VStack {
                         Image(systemName: "record.circle.fill")
                             .foregroundColor(.red)
                             .symbolEffect(.pulse)
-                        Text("REC")
+                        Text("녹화")
                             .font(.caption2)
                             .fontWeight(.bold)
                             .foregroundColor(.red)
@@ -40,19 +40,19 @@ struct EnhancedStatusCardView: View {
             .frame(maxWidth: .infinity)
             
             if !bluetoothKit.isConnected {
-                // Scanning Controls
+                // 스캔 컨트롤
                 VStack(spacing: 12) {
                     if bluetoothKit.isScanning {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .blue))
                         
-                        Button("Stop Scanning") {
+                        Button("스캔 중지") {
                             bluetoothKit.stopScanning()
                         }
                         .buttonStyle(.bordered)
                         .tint(.red)
                     } else {
-                        Button("Start Scanning") {
+                        Button("스캔 시작") {
                             bluetoothKit.startScanning()
                         }
                         .buttonStyle(.borderedProminent)
@@ -62,7 +62,7 @@ struct EnhancedStatusCardView: View {
                 }
                 .frame(maxWidth: .infinity)
                 
-                // Auto-reconnect toggle
+                // Auto-reconnect 토글
                 Divider()
                 
                 HStack {
@@ -70,7 +70,7 @@ struct EnhancedStatusCardView: View {
                         .foregroundColor(.blue)
                         .font(.subheadline)
                     
-                    Text("Auto-reconnect")
+                    Text("자동 재연결")
                         .font(.subheadline)
                     
                     Spacer()
@@ -84,12 +84,12 @@ struct EnhancedStatusCardView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 4)
                 
-                // Device List
+                // Device Scanner
                 if !bluetoothKit.discoveredDevices.isEmpty {
                     Divider()
                     
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Discovered Devices")
+                        Text("발견된 디바이스")
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
@@ -104,7 +104,7 @@ struct EnhancedStatusCardView: View {
                                 
                                 Spacer()
                                 
-                                Button("Connect") {
+                                Button("연결") {
                                     bluetoothKit.connect(to: device)
                                 }
                                 .buttonStyle(.bordered)
@@ -126,7 +126,7 @@ struct EnhancedStatusCardView: View {
                     .frame(maxWidth: .infinity)
                 }
             } else {
-                // Data rate information when connected
+                // 연결되었을 때 데이터 레이트 정보
                 Divider()
                 
                 HStack {
@@ -205,7 +205,7 @@ struct EnhancedStatusCardView: View {
     }
 }
 
-/// Data rate indicator component for showing sensor status
+/// 센서 상태를 표시하는 데이터 레이트 인디케이터 컴포넌트
 struct DataRateIndicator: View {
     let title: String
     let hasData: Bool
@@ -214,14 +214,18 @@ struct DataRateIndicator: View {
     var body: some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(.system(size: 16))
                 .foregroundColor(hasData ? .green : .gray)
-                .symbolEffect(.pulse, isActive: hasData)
+                .symbolEffect(.pulse, value: hasData)
             
             Text(title)
                 .font(.caption2)
                 .fontWeight(.medium)
-                .foregroundColor(hasData ? .green : .gray)
+                .foregroundColor(.secondary)
+            
+            Circle()
+                .fill(hasData ? Color.green : Color.gray.opacity(0.5))
+                .frame(width: 6, height: 6)
         }
     }
 }

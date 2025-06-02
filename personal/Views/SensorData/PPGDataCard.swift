@@ -10,7 +10,7 @@ struct PPGDataCard: View {
                 Image(systemName: "heart.fill")
                     .foregroundColor(.red)
                     .font(.title2)
-                Text("PPG Data")
+                Text("PPG 데이터")
                     .font(.headline)
                     .foregroundColor(.red)
                 Spacer()
@@ -19,7 +19,7 @@ struct PPGDataCard: View {
             
             HStack(spacing: 30) {
                 VStack {
-                    Text("Red")
+                    Text("적색")
                         .font(.caption)
                         .foregroundColor(.gray)
                     Text("\(reading.red)")
@@ -29,7 +29,7 @@ struct PPGDataCard: View {
                 .frame(maxWidth: .infinity)
                 
                 VStack {
-                    Text("IR")
+                    Text("적외선")
                         .font(.caption)
                         .foregroundColor(.gray)
                     Text("\(reading.ir)")

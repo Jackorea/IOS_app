@@ -3,15 +3,15 @@ import CoreBluetooth
 
 // MARK: - BluetoothKit Main Interface
 
-/// A comprehensive Bluetooth Low Energy (BLE) library for connecting to sensor devices and collecting biomedical data.
+/// 센서 디바이스 연결 및 생체의학 데이터 수집을 위한 포괄적인 Bluetooth Low Energy (BLE) 라이브러리입니다.
 ///
-/// `BluetoothKit` provides a simple interface for:
-/// - Scanning and connecting to Bluetooth devices
-/// - Receiving real-time sensor data (EEG, PPG, Accelerometer, Battery)
-/// - Recording data to files
-/// - Managing connection states with automatic reconnection
+/// `BluetoothKit`은 다음을 위한 간단한 인터페이스를 제공합니다:
+/// - Bluetooth 디바이스 스캔 및 연결
+/// - 실시간 센서 데이터 수신 (EEG, PPG, 가속도계, 배터리)
+/// - 파일로 데이터 기록
+/// - 자동 재연결을 통한 연결 상태 관리
 ///
-/// ## Usage
+/// ## 사용법
 ///
 /// ```swift
 /// import SwiftUI
@@ -22,9 +22,9 @@ import CoreBluetooth
 ///     
 ///     var body: some View {
 ///         VStack {
-///             Text("Status: \(bluetoothKit.connectionState.description)")
+///             Text("상태: \(bluetoothKit.connectionState.description)")
 ///             
-///             Button("Start Scanning") {
+///             Button("스캔 시작") {
 ///                 bluetoothKit.startScanning()
 ///             }
 ///             
@@ -36,9 +36,9 @@ import CoreBluetooth
 /// }
 /// ```
 ///
-/// ## Configuration
+/// ## 설정
 ///
-/// You can customize the behavior using `SensorConfiguration`:
+/// `SensorConfiguration`을 사용하여 동작을 사용자 정의할 수 있습니다:
 ///
 /// ```swift
 /// let config = SensorConfiguration(
@@ -52,71 +52,71 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     
     // MARK: - Public Properties
     
-    /// List of discovered Bluetooth devices during scanning.
+    /// 스캔 중 발견된 Bluetooth 디바이스 목록.
     ///
-    /// This array is automatically updated when new devices are found during scanning.
-    /// Devices are filtered by the configured device name prefix.
+    /// 이 배열은 스캔 중 새 디바이스가 발견될 때 자동으로 업데이트됩니다.
+    /// 디바이스는 설정된 디바이스 이름 접두사로 필터링됩니다.
     @Published public var discoveredDevices: [BluetoothDevice] = []
     
-    /// Current connection state.
+    /// 현재 연결 상태.
     ///
-    /// Monitor this to handle different connection states:
-    /// - `.disconnected`: No active connection
-    /// - `.scanning`: Currently scanning for devices  
-    /// - `.connecting(deviceName)`: Attempting to connect to a device
-    /// - `.connected(deviceName)`: Successfully connected to a device
-    /// - `.reconnecting(deviceName)`: Attempting to reconnect after disconnection
-    /// - `.failed(error)`: Connection or operation failed
+    /// 다양한 연결 상태를 처리하기 위해 이를 모니터링하세요:
+    /// - `.disconnected`: 활성 연결 없음
+    /// - `.scanning`: 현재 디바이스 스캔 중  
+    /// - `.connecting(deviceName)`: 디바이스 연결 시도 중
+    /// - `.connected(deviceName)`: 디바이스에 성공적으로 연결됨
+    /// - `.reconnecting(deviceName)`: 연결 해제 후 재연결 시도 중
+    /// - `.failed(error)`: 연결 또는 작업 실패
     @Published public var connectionState: ConnectionState = .disconnected
     
-    /// Whether the library is currently scanning for devices.
+    /// 라이브러리가 현재 디바이스를 스캔 중인지 여부.
     @Published public var isScanning: Bool = false
     
-    /// Whether data recording is currently active.
+    /// 데이터 기록이 현재 활성화되어 있는지 여부.
     ///
-    /// When `true`, all received sensor data is being saved to files.
+    /// `true`일 때, 수신된 모든 센서 데이터가 파일에 저장됩니다.
     @Published public var isRecording: Bool = false
     
-    /// Whether auto-reconnection is currently enabled.
+    /// auto-reconnection이 현재 활성화되어 있는지 여부.
     ///
-    /// When `true`, the library will automatically attempt to reconnect if connection is lost.
+    /// `true`일 때, 연결이 끊어지면 라이브러리가 자동으로 재연결을 시도합니다.
     @Published public var isAutoReconnectEnabled: Bool = true
     
-    // Latest sensor readings
+    // 최신 센서 읽기값
     
-    /// The most recent EEG (electroencephalogram) reading.
+    /// 가장 최근의 EEG (뇌전도) 읽기값.
     ///
-    /// Contains 2-channel brain activity data in microvolts (µV) and lead-off status.
-    /// `nil` if no EEG data has been received yet.
+    /// 마이크로볼트(µV) 단위의 2채널 뇌 활동 데이터와 lead-off 상태를 포함합니다.
+    /// 아직 EEG 데이터를 받지 못한 경우 `nil`입니다.
     @Published public var latestEEGReading: EEGReading?
     
-    /// The most recent PPG (photoplethysmography) reading.
+    /// 가장 최근의 PPG (광전 용적 맥파) 읽기값.
     ///
-    /// Contains red and infrared LED values for heart rate monitoring.
-    /// `nil` if no PPG data has been received yet.
+    /// 심박수 모니터링을 위한 적색 및 적외선 LED 값을 포함합니다.
+    /// 아직 PPG 데이터를 받지 못한 경우 `nil`입니다.
     @Published public var latestPPGReading: PPGReading?
     
-    /// The most recent accelerometer reading.
+    /// 가장 최근의 가속도계 읽기값.
     ///
-    /// Contains 3-axis acceleration data for motion detection.
-    /// `nil` if no accelerometer data has been received yet.
+    /// 모션 감지를 위한 3축 가속도 데이터를 포함합니다.
+    /// 아직 가속도계 데이터를 받지 못한 경우 `nil`입니다.
     @Published public var latestAccelerometerReading: AccelerometerReading?
     
-    /// The most recent battery level reading.
+    /// 가장 최근의 배터리 레벨 읽기값.
     ///
-    /// Contains battery percentage (0-100%) from the connected device.
-    /// `nil` if no battery data has been received yet.
+    /// 연결된 디바이스의 배터리 백분율(0-100%)을 포함합니다.
+    /// 아직 배터리 데이터를 받지 못한 경우 `nil`입니다.
     @Published public var latestBatteryReading: BatteryReading?
     
-    /// List of recorded data files.
+    /// 기록된 데이터 파일 목록.
     ///
-    /// Updated automatically when recordings are completed.
-    /// Each recording session creates multiple CSV files (one per sensor type).
+    /// 기록이 완료되면 자동으로 업데이트됩니다.
+    /// 각 기록 세션은 여러 CSV 파일(센서 타입당 하나)을 생성합니다.
     @Published public var recordedFiles: [URL] = []
     
-    /// Whether Bluetooth is currently disabled.
+    /// Bluetooth가 현재 비활성화되어 있는지 여부.
     ///
-    /// Automatically set to `true` when Bluetooth is turned off.
+    /// Bluetooth가 꺼지면 자동으로 `true`로 설정됩니다.
     @Published public var isBluetoothDisabled: Bool = false
     
     // MARK: - Private Components
@@ -128,19 +128,19 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     
     // MARK: - Initialization
     
-    /// Creates a new BluetoothKit instance.
+    /// 새로운 BluetoothKit 인스턴스를 생성합니다.
     ///
     /// - Parameters:
-    ///   - configuration: Sensor configuration settings. Defaults to `.default`.
-    ///   - logger: Logger implementation for debugging. Defaults to `DefaultLogger()`.
+    ///   - configuration: 센서 구성 설정. 기본값은 `.default`입니다.
+    ///   - logger: 디버깅을 위한 로거 구현. 기본값은 `DefaultLogger()`입니다.
     ///
-    /// ## Example
+    /// ## 예시
     ///
     /// ```swift
-    /// // Use default configuration
+    /// // 기본 설정 사용
     /// let bluetoothKit = BluetoothKit()
     ///
-    /// // Custom configuration with higher sample rates
+    /// // 높은 샘플링 레이트를 가진 사용자 정의 설정
     /// let config = SensorConfiguration(
     ///     eegSampleRate: 500.0,
     ///     ppgSampleRate: 100.0,
@@ -148,7 +148,7 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     /// )
     /// let bluetoothKit = BluetoothKit(configuration: config)
     ///
-    /// // Silent logging for production
+    /// // 프로덕션용 무음 로깅
     /// let bluetoothKit = BluetoothKit(logger: SilentLogger())
     /// ```
     public init(configuration: SensorConfiguration = .default, logger: BluetoothKitLogger = DefaultLogger()) {
@@ -157,7 +157,7 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
         self.bluetoothManager = BluetoothManager(configuration: configuration, logger: logger)
         self.dataRecorder = DataRecorder(logger: logger)
         
-        // Initialize auto-reconnect setting from configuration
+        // 설정에서 auto-reconnect 설정 초기화
         self.isAutoReconnectEnabled = configuration.autoReconnectEnabled
         
         setupDelegates()
@@ -168,21 +168,21 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     
     // MARK: - Public Interface
     
-    /// Start scanning for Bluetooth devices.
+    /// Bluetooth 디바이스 스캔을 시작합니다.
     ///
-    /// Only devices matching the configured `deviceNamePrefix` will be discovered.
-    /// Updates `discoveredDevices` array as devices are found.
+    /// 설정된 `deviceNamePrefix`와 일치하는 디바이스만 검색됩니다.
+    /// 디바이스가 발견되면 `discoveredDevices` 배열이 업데이트됩니다.
     ///
-    /// - Note: Ensure Bluetooth is enabled before calling this method.
+    /// - Note: 이 메서드를 호출하기 전에 Bluetooth가 활성화되어 있는지 확인하세요.
     ///
-    /// ## Example
+    /// ## 예시
     ///
     /// ```swift
     /// bluetoothKit.startScanning()
     /// 
-    /// // Monitor scanning state
+    /// // 스캔 상태 모니터링
     /// if bluetoothKit.isScanning {
-    ///     print("Scanning in progress...")
+    ///     print("스캔 진행 중...")
     /// }
     /// ```
     public func startScanning() {
@@ -190,36 +190,36 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
         bluetoothManager.startScanning()
     }
     
-    /// Stop scanning for Bluetooth devices.
+    /// Bluetooth 디바이스 스캔을 중지합니다.
     ///
-    /// Cancels any ongoing device discovery process.
+    /// 진행 중인 모든 디바이스 검색 프로세스를 취소합니다.
     public func stopScanning() {
         log("Stopping device scan", level: .info)
         bluetoothManager.stopScanning()
     }
     
-    /// Connect to a specific Bluetooth device.
+    /// 특정 Bluetooth 디바이스에 연결합니다.
     ///
-    /// - Parameter device: The device to connect to, obtained from `discoveredDevices`.
+    /// - Parameter device: `discoveredDevices`에서 얻은 연결할 디바이스.
     ///
-    /// Connection progress can be monitored via `connectionState`.
-    /// Upon successful connection, sensor data will begin streaming automatically.
+    /// 연결 진행 상황은 `connectionState`를 통해 모니터링할 수 있습니다.
+    /// 연결 성공 시, 센서 데이터가 자동으로 스트리밍을 시작합니다.
     ///
-    /// ## Example
+    /// ## 예시
     ///
     /// ```swift
     /// if let device = bluetoothKit.discoveredDevices.first {
     ///     bluetoothKit.connect(to: device)
     /// }
     /// 
-    /// // Monitor connection state
+    /// // 연결 상태 모니터링
     /// switch bluetoothKit.connectionState {
     /// case .connecting(let deviceName):
-    ///     print("Connecting to \(deviceName)...")
+    ///     print("\(deviceName)에 연결 중...")
     /// case .connected(let deviceName):
-    ///     print("Connected to \(deviceName)")
+    ///     print("\(deviceName)에 연결됨")
     /// case .failed(let error):
-    ///     print("Connection failed: \(error)")
+    ///     print("연결 실패: \(error)")
     /// default:
     ///     break
     /// }
@@ -229,46 +229,46 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
         bluetoothManager.connect(to: device)
     }
     
-    /// Disconnect from the currently connected device.
+    /// 현재 연결된 디바이스에서 연결을 해제합니다.
     ///
-    /// If recording is active, it will be automatically stopped before disconnection.
-    /// Disables auto-reconnection for this disconnection.
+    /// 기록이 활성화되어 있다면, 연결 해제 전에 자동으로 중지됩니다.
+    /// 이 연결 해제에 대해 auto-reconnection을 비활성화합니다.
     public func disconnect() {
         log("Disconnecting from current device", level: .info)
-        // Stop recording if active
+        // 활성화된 경우 기록 중지
         if isRecording {
             stopRecording()
         }
         bluetoothManager.disconnect()
     }
     
-    /// Start recording sensor data to files.
+    /// 센서 데이터를 파일로 기록하기 시작합니다.
     ///
-    /// Creates timestamped CSV files for each sensor type in the documents directory.
-    /// Recording continues until `stopRecording()` is called.
+    /// documents 디렉토리에 각 센서 타입별로 타임스탬프가 찍힌 CSV 파일을 생성합니다.
+    /// `stopRecording()`이 호출될 때까지 기록이 계속됩니다.
     ///
-    /// - Note: A device must be connected and streaming data for recording to be meaningful.
+    /// - Note: 기록이 의미를 갖기 위해서는 디바이스가 연결되어 데이터를 스트리밍해야 합니다.
     ///
-    /// ## File Format
+    /// ## 파일 형식
     ///
-    /// The following CSV files are created:
-    /// - `YYYYMMDD_HHMMSS_eeg.csv`: EEG data with timestamp, channel1, channel2, leadOff
-    /// - `YYYYMMDD_HHMMSS_ppg.csv`: PPG data with timestamp, red, ir
-    /// - `YYYYMMDD_HHMMSS_accel.csv`: Accelerometer data with timestamp, x, y, z
-    /// - `YYYYMMDD_HHMMSS_raw.json`: Complete session data in JSON format
+    /// 다음 CSV 파일들이 생성됩니다:
+    /// - `YYYYMMDD_HHMMSS_eeg.csv`: 타임스탬프, channel1, channel2, leadOff가 포함된 EEG 데이터
+    /// - `YYYYMMDD_HHMMSS_ppg.csv`: 타임스탬프, red, ir이 포함된 PPG 데이터
+    /// - `YYYYMMDD_HHMMSS_accel.csv`: 타임스탬프, x, y, z가 포함된 가속도계 데이터
+    /// - `YYYYMMDD_HHMMSS_raw.json`: JSON 형식의 완전한 세션 데이터
     ///
-    /// ## Example
+    /// ## 예시
     ///
     /// ```swift
-    /// // Start recording
+    /// // 기록 시작
     /// bluetoothKit.startRecording()
     /// 
-    /// // Monitor recording state
+    /// // 기록 상태 모니터링
     /// if bluetoothKit.isRecording {
-    ///     print("Recording sensor data...")
+    ///     print("센서 데이터 기록 중...")
     /// }
     /// 
-    /// // Stop after 30 seconds
+    /// // 30초 후 중지
     /// DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
     ///     bluetoothKit.stopRecording()
     /// }
@@ -278,54 +278,54 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
         dataRecorder.startRecording()
     }
     
-    /// Stop recording sensor data.
+    /// 센서 데이터 기록을 중지합니다.
     ///
-    /// Finalizes and saves all data files. The `recordedFiles` array will be updated
-    /// with the URLs of the saved files.
+    /// 모든 데이터 파일을 마무리하고 저장합니다. `recordedFiles` 배열이
+    /// 저장된 파일들의 URL로 업데이트됩니다.
     public func stopRecording() {
         log("Stopping data recording", level: .info)
         dataRecorder.stopRecording()
     }
     
-    /// Get the directory where recordings are saved.
+    /// 기록이 저장되는 디렉토리를 가져옵니다.
     ///
-    /// - Returns: URL to the documents directory where CSV and JSON files are stored.
+    /// - Returns: CSV 및 JSON 파일이 저장되는 documents 디렉토리의 URL.
     ///
-    /// Use this to access recorded files programmatically or for sharing functionality.
+    /// 기록된 파일에 프로그래밍적으로 접근하거나 공유 기능을 위해 사용하세요.
     public var recordingsDirectory: URL {
         return dataRecorder.recordingsDirectory
     }
     
-    /// Check if currently connected to a device.
+    /// 현재 디바이스에 연결되어 있는지 확인합니다.
     ///
-    /// - Returns: `true` if a device is connected and ready for data streaming.
+    /// - Returns: 디바이스가 연결되어 데이터 스트리밍 준비가 되었으면 `true`.
     public var isConnected: Bool {
         return bluetoothManager.isConnected
     }
     
-    /// Get current connection status description.
+    /// 현재 연결 상태 설명을 가져옵니다.
     ///
-    /// - Returns: Human-readable string describing the current connection state.
+    /// - Returns: 현재 연결 상태를 설명하는 사람이 읽을 수 있는 문자열.
     ///
-    /// Useful for displaying status in UI labels.
+    /// UI 라벨에 상태를 표시하는 데 유용합니다.
     public var connectionStatusDescription: String {
         return connectionState.description
     }
     
-    /// Enable or disable auto-reconnection.
+    /// auto-reconnection을 활성화하거나 비활성화합니다.
     ///
-    /// - Parameter enabled: Whether to automatically reconnect when connection is lost.
+    /// - Parameter enabled: 연결이 끊어졌을 때 자동으로 재연결할지 여부.
     ///
-    /// When enabled, the library will automatically attempt to reconnect to the last
-    /// connected device if the connection is lost unexpectedly (not due to user action).
+    /// 활성화되면, 연결이 예기치 않게 끊어졌을 때(사용자 작업이 아닌 경우)
+    /// 라이브러리가 자동으로 마지막에 연결된 디바이스에 재연결을 시도합니다.
     ///
-    /// ## Example
+    /// ## 예시
     ///
     /// ```swift
-    /// // Enable auto-reconnect for robust connections
+    /// // 견고한 연결을 위해 auto-reconnect 활성화
     /// bluetoothKit.setAutoReconnect(enabled: true)
     /// 
-    /// // Disable for manual connection control
+    /// // 수동 연결 제어를 위해 비활성화
     /// bluetoothKit.setAutoReconnect(enabled: false)
     /// ```
     public func setAutoReconnect(enabled: Bool) {
@@ -360,7 +360,7 @@ extension BluetoothKit: BluetoothManagerDelegate {
         connectionState = state
         isScanning = bluetoothManager.isScanning
         
-        // Handle Bluetooth off alert
+        // Bluetooth 비활성화 알림 처리
         if case .failed(let error) = state,
            let bluetoothError = error as? BluetoothKitError,
            bluetoothError == .bluetoothUnavailable {
@@ -397,12 +397,12 @@ extension BluetoothKit: SensorDataDelegate {
     public func didReceiveEEGData(_ reading: EEGReading) {
         latestEEGReading = reading
         
-        // Record if recording is active
+        // 기록이 활성화된 경우 기록
         if isRecording {
             dataRecorder.recordEEGData([reading])
         }
         
-        // Log live data for debugging
+        // 디버깅을 위한 실시간 데이터 로그
         let status = reading.leadOff ? "Disconnected" : "Connected"
         log("EEG Live - CH1: \(String(format: "%.1f", reading.channel1)) µV, CH2: \(String(format: "%.1f", reading.channel2)) µV, Status: \(status)", level: .debug)
     }
@@ -410,31 +410,31 @@ extension BluetoothKit: SensorDataDelegate {
     public func didReceivePPGData(_ reading: PPGReading) {
         latestPPGReading = reading
         
-        // Record if recording is active
+        // 기록이 활성화된 경우 기록
         if isRecording {
             dataRecorder.recordPPGData([reading])
         }
         
-        // Log live data for debugging
+        // 디버깅을 위한 실시간 데이터 로그
         log("PPG Live - Red: \(reading.red), IR: \(reading.ir)", level: .debug)
     }
     
     public func didReceiveAccelerometerData(_ reading: AccelerometerReading) {
         latestAccelerometerReading = reading
         
-        // Record if recording is active
+        // 기록이 활성화된 경우 기록
         if isRecording {
             dataRecorder.recordAccelerometerData([reading])
         }
         
-        // Log live data for debugging
+        // 디버깅을 위한 실시간 데이터 로그
         log("Accel Live - X: \(reading.x), Y: \(reading.y), Z: \(reading.z)", level: .debug)
     }
     
     public func didReceiveBatteryData(_ reading: BatteryReading) {
         latestBatteryReading = reading
         
-        // Record if recording is active
+        // 기록이 활성화된 경우 기록
         if isRecording {
             dataRecorder.recordBatteryData(reading)
         }
@@ -455,12 +455,12 @@ extension BluetoothKit: DataRecorderDelegate {
     
     public func dataRecorder(_ recorder: AnyObject, didStopRecording at: Date, savedFiles: [URL]) {
         isRecording = false
-        updateRecordedFiles()
-        log("Recording stopped at \(at). Saved \(savedFiles.count) files", level: .info)
+        recordedFiles = savedFiles
+        log("Recording stopped at \(at). Files saved: \(savedFiles.count)", level: .info)
     }
     
     public func dataRecorder(_ recorder: AnyObject, didFailWithError error: Error) {
         isRecording = false
-        log("Recording error: \(error.localizedDescription)", level: .error)
+        log("Recording failed: \(error.localizedDescription)", level: .error)
     }
 } 

@@ -85,21 +85,21 @@ public enum ConnectionState: Sendable, Equatable {
     public var description: String {
         switch self {
         case .disconnected:
-            return "Not Connected"
+            return "연결 안됨"
         case .scanning:
-            return "Scanning..."
+            return "스캔 중..."
         case .connecting(let deviceName):
-            return "Connecting to \(deviceName)..."
+            return "\(deviceName)에 연결 중..."
         case .connected(let deviceName):
-            return "Connected to \(deviceName)"
+            return "\(deviceName)에 연결됨"
         case .reconnecting(let deviceName):
-            return "Reconnecting to \(deviceName)..."
+            return "\(deviceName)에 재연결 중..."
         case .failed(let error):
-            return "Failed: \(error.localizedDescription)"
+            return "실패: \(error.localizedDescription)"
         }
     }
     
-    // Manual Equatable implementation
+    // 수동 Equatable 구현
     public static func == (lhs: ConnectionState, rhs: ConnectionState) -> Bool {
         switch (lhs, rhs) {
         case (.disconnected, .disconnected), (.scanning, .scanning):
@@ -132,17 +132,17 @@ public enum RecordingState: Sendable {
 
 // MARK: - Configuration
 
-/// Configuration settings for sensor data collection and device communication.
+/// 센서 데이터 수집 및 디바이스 통신을 위한 구성 설정입니다.
 ///
-/// Use this structure to customize the basic behavior of BluetoothKit.
+/// 이 구조체를 사용하여 BluetoothKit의 기본 동작을 사용자 정의할 수 있습니다.
 ///
-/// ## Example
+/// ## 예시
 ///
 /// ```swift
-/// // Default configuration
+/// // 기본 설정
 /// let defaultConfig = SensorConfiguration.default
 ///
-/// // Custom sample rates
+/// // 사용자 정의 샘플링 레이트
 /// let customConfig = SensorConfiguration(
 ///     eegSampleRate: 500.0,
 ///     ppgSampleRate: 100.0,
@@ -151,27 +151,27 @@ public enum RecordingState: Sendable {
 /// ```
 public struct SensorConfiguration: Sendable {
     
-    /// EEG sampling rate in Hz.
+    /// EEG 샘플링 레이트 (Hz).
     ///
-    /// Typical values: 125Hz, 250Hz, 500Hz, 1000Hz
+    /// 일반적인 값: 125Hz, 250Hz, 500Hz, 1000Hz
     public let eegSampleRate: Double
     
-    /// PPG sampling rate in Hz.
+    /// PPG 샘플링 레이트 (Hz).
     ///
-    /// Typical values: 25Hz, 50Hz, 100Hz
+    /// 일반적인 값: 25Hz, 50Hz, 100Hz
     public let ppgSampleRate: Double
     
-    /// Accelerometer sampling rate in Hz.
+    /// 가속도계 샘플링 레이트 (Hz).
     ///
-    /// Typical values: 10Hz, 30Hz, 50Hz, 100Hz
+    /// 일반적인 값: 10Hz, 30Hz, 50Hz, 100Hz
     public let accelerometerSampleRate: Double
     
-    /// Prefix for filtering discoverable devices.
+    /// 검색 가능한 디바이스를 필터링하기 위한 접두사.
     ///
-    /// Only devices whose names start with this prefix will be discovered during scanning.
+    /// 이 접두사로 시작하는 이름을 가진 디바이스만 스캔 중에 검색됩니다.
     public let deviceNamePrefix: String
     
-    /// Whether to automatically reconnect when connection is lost.
+    /// 연결이 끊어졌을 때 자동으로 재연결할지 여부.
     public let autoReconnectEnabled: Bool
     
     // MARK: - Internal hardware parameters (fixed values)
@@ -191,14 +191,14 @@ public struct SensorConfiguration: Sendable {
     internal let eegValidRange: ClosedRange<Double> = -200.0...200.0
     internal let ppgMaxValue: Int = 16777215
     
-    /// Creates a new sensor configuration.
+    /// 새로운 센서 설정을 생성합니다.
     ///
     /// - Parameters:
-    ///   - eegSampleRate: EEG sampling rate in Hz. Default: 250.0
-    ///   - ppgSampleRate: PPG sampling rate in Hz. Default: 50.0
-    ///   - accelerometerSampleRate: Accelerometer sampling rate in Hz. Default: 30.0
-    ///   - deviceNamePrefix: Device name filter prefix. Default: "LXB-"
-    ///   - autoReconnectEnabled: Enable automatic reconnection. Default: true
+    ///   - eegSampleRate: EEG 샘플링 레이트 (Hz). 기본값: 250.0
+    ///   - ppgSampleRate: PPG 샘플링 레이트 (Hz). 기본값: 50.0
+    ///   - accelerometerSampleRate: 가속도계 샘플링 레이트 (Hz). 기본값: 30.0
+    ///   - deviceNamePrefix: 디바이스 이름 필터 접두사. 기본값: "LXB-"
+    ///   - autoReconnectEnabled: 자동 재연결 활성화. 기본값: true
     public init(
         eegSampleRate: Double = 250.0,
         ppgSampleRate: Double = 50.0,
@@ -213,17 +213,17 @@ public struct SensorConfiguration: Sendable {
         self.autoReconnectEnabled = autoReconnectEnabled
     }
     
-    /// Default configuration for typical biomedical data collection.
+    /// 일반적인 생체의학 데이터 수집을 위한 기본 설정.
     public static let `default` = SensorConfiguration()
     
-    /// High-performance configuration for research applications.
+    /// 연구 애플리케이션을 위한 고성능 설정.
     public static let highPerformance = SensorConfiguration(
         eegSampleRate: 500.0,
         ppgSampleRate: 100.0,
         accelerometerSampleRate: 100.0
     )
     
-    /// Low-power configuration for extended monitoring.
+    /// 장시간 모니터링을 위한 저전력 설정.
     public static let lowPower = SensorConfiguration(
         eegSampleRate: 125.0,
         ppgSampleRate: 25.0,
@@ -233,50 +233,50 @@ public struct SensorConfiguration: Sendable {
 
 // MARK: - Sensor UUIDs (Internal)
 
-/// Internal structure containing Bluetooth service and characteristic UUIDs.
+/// Bluetooth 서비스 및 특성 UUID를 포함하는 내부 구조체입니다.
 ///
-/// These UUIDs define the Bluetooth Low Energy GATT profile for sensor communication.
-/// They are specific to the sensor hardware being used and may need to be updated
-/// for different device manufacturers.
+/// 이 UUID들은 센서 통신을 위한 Bluetooth Low Energy GATT 프로파일을 정의합니다.
+/// 사용되는 센서 하드웨어에 특화되어 있으며 다른 디바이스 제조업체의 경우
+/// 업데이트가 필요할 수 있습니다.
 internal struct SensorUUID {
     // MARK: - EEG Service
     
-    /// EEG service UUID (shared service for notify and write operations)
+    /// EEG 서비스 UUID (알림 및 쓰기 작업을 위한 공유 서비스)
     static var eegService: CBUUID { CBUUID(string: "df7b5d95-3afe-00a1-084c-b50895ef4f95") }
     
-    /// EEG notification characteristic UUID (for receiving data)
+    /// EEG 알림 특성 UUID (데이터 수신용)
     static var eegNotifyChar: CBUUID { CBUUID(string: "00ab4d15-66b4-0d8a-824f-8d6f8966c6e5") }
     
-    /// EEG write characteristic UUID (for sending commands)
+    /// EEG 쓰기 특성 UUID (명령 전송용)
     static var eegWriteChar: CBUUID { CBUUID(string: "0065cacb-9e52-21bf-a849-99a80d83830e") }
 
     // MARK: - PPG Service
     
-    /// PPG service UUID
+    /// PPG 서비스 UUID
     static var ppgService: CBUUID { CBUUID(string: "1cc50ec0-6967-9d84-a243-c2267f924d1f") }
     
-    /// PPG characteristic UUID (for receiving photoplethysmography data)
+    /// PPG 특성 UUID (광전 용적 맥파 데이터 수신용)
     static var ppgChar: CBUUID { CBUUID(string: "6c739642-23ba-818b-2045-bfe8970263f6") }
 
     // MARK: - Accelerometer Service
     
-    /// Accelerometer service UUID
+    /// 가속도계 서비스 UUID
     static var accelService: CBUUID { CBUUID(string: "75c276c3-8f97-20bc-a143-b354244886d4") }
     
-    /// Accelerometer characteristic UUID (for receiving motion data)
+    /// 가속도계 특성 UUID (모션 데이터 수신용)
     static var accelChar: CBUUID { CBUUID(string: "d3d46a35-4394-e9aa-5a43-e7921120aaed") }
 
     // MARK: - Battery Service
     
-    /// Standard Bluetooth SIG Battery Service UUID
+    /// 표준 Bluetooth SIG Battery Service UUID
     static var batteryService: CBUUID { CBUUID(string: "0000180f-0000-1000-8000-00805f9b34fb") }
     
-    /// Standard Bluetooth SIG Battery Level Characteristic UUID
+    /// 표준 Bluetooth SIG Battery Level Characteristic UUID
     static var batteryChar: CBUUID { CBUUID(string: "00002a19-0000-1000-8000-00805f9b34fb") }
     
     // MARK: - Convenience Collections
     
-    /// All sensor characteristic UUIDs for easy iteration
+    /// 쉬운 반복을 위한 모든 센서 특성 UUID
     static var allSensorCharacteristics: [CBUUID] {
         [eegNotifyChar, ppgChar, accelChar, batteryChar]
     }
@@ -333,7 +333,7 @@ public struct SilentLogger: BluetoothKitLogger {
     public init() {}
     
     public func log(_ message: String, level: LogLevel, file: String, function: String, line: Int) {
-        // Do nothing
+        // 아무것도 하지 않음
     }
 }
 
@@ -394,7 +394,7 @@ public enum BluetoothKitError: LocalizedError, Sendable, Equatable {
         }
     }
     
-    // Manual Equatable implementation
+    // 수동 Equatable 구현
     public static func == (lhs: BluetoothKitError, rhs: BluetoothKitError) -> Bool {
         switch (lhs, rhs) {
         case (.bluetoothUnavailable, .bluetoothUnavailable), (.deviceNotFound, .deviceNotFound):

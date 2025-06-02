@@ -10,7 +10,7 @@ struct EEGDataCard: View {
                 Image(systemName: "brain.head.profile")
                     .foregroundColor(.purple)
                     .font(.title2)
-                Text("EEG Data")
+                Text("EEG 데이터")
                     .font(.headline)
                     .foregroundColor(.purple)
                 Spacer()
@@ -41,10 +41,10 @@ struct EEGDataCard: View {
                 .frame(maxWidth: .infinity)
                 
                 VStack {
-                    Text("Status")
+                    Text("상태")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text(reading.leadOff ? "Disconnected" : "Connected")
+                    Text(reading.leadOff ? "연결 해제됨" : "연결됨")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(reading.leadOff ? .red : .green)

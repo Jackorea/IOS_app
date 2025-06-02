@@ -8,12 +8,12 @@ struct ControlsView: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            // Auto-reconnect toggle
+            // Auto-reconnect 토글
             HStack {
                 Image(systemName: "arrow.clockwise")
                     .foregroundColor(.blue)
                 
-                Text("Auto-reconnect")
+                Text("자동 재연결")
                     .font(.subheadline)
                 
                 Spacer()
@@ -27,12 +27,12 @@ struct ControlsView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal)
             
-            // Connection controls - only show disconnect when connected
+            // 연결 컨트롤 - 연결된 경우에만 연결 해제 표시
             if bluetoothKit.isConnected {
                 Divider()
                 
                 Button(action: { bluetoothKit.disconnect() }) {
-                    Label("Disconnect", systemImage: "link.badge.minus")
+                    Label("연결 해제", systemImage: "link.badge.minus")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)

@@ -18,14 +18,14 @@ struct RecordedFilesView: View {
             Group {
                 if recordedFiles.isEmpty {
                     ContentUnavailableView(
-                        "No Recordings",
+                        "녹화 파일 없음",
                         systemImage: "folder",
-                        description: Text("Start recording sensor data to see files here.")
+                        description: Text("센서 데이터 녹화를 시작하면 여기에 파일이 표시됩니다.")
                     )
                 } else {
                     List {
                         // Files list
-                        Section("Files") {
+                        Section("파일") {
                             ForEach(groupedFiles.keys.sorted().reversed(), id: \.self) { dateString in
                                 Section(dateString) {
                                     ForEach(groupedFiles[dateString] ?? [], id: \.self) { url in
@@ -41,7 +41,7 @@ struct RecordedFilesView: View {
                     }
                 }
             }
-            .navigationTitle("Recorded Files")
+            .navigationTitle("녹화된 파일")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
@@ -52,7 +52,7 @@ struct RecordedFilesView: View {
                         .help("Open recordings directory info")
                     }
                     
-                    Button("Done") {
+                    Button("완료") {
                         dismiss()
                     }
                 }
@@ -87,7 +87,7 @@ struct RecordedFilesView: View {
                 let day = String(dateStr.dropFirst(6).prefix(2))
                 return "\(year)-\(month)-\(day)"
             }
-            return "Other"
+            return "기타"
         }
     }
     

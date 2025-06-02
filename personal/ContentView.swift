@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  personal
 //
-//  Enhanced example app demonstrating BluetoothKit capabilities
+//  BluetoothKit 기능을 시연하는 향상된 예제 앱
 //
 
 import Foundation
@@ -11,10 +11,10 @@ import CoreBluetooth
 import BluetoothKit
 import UniformTypeIdentifiers
 
-// REMOVE BluetoothDevice struct if it exists here
-// REMOVE SensorUUID struct if it exists here
+// BluetoothDevice struct가 여기에 있다면 제거
+// SensorUUID struct가 여기에 있다면 제거
 
-// BluetoothViewModel class and its extensions will be moved
+// BluetoothViewModel 클래스와 확장들은 이동될 예정
 
 struct ContentView: View {
     @StateObject private var bluetoothKit: BluetoothKit
@@ -28,11 +28,11 @@ struct ContentView: View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 20) {
-                    // Enhanced Status Card (now includes scanning controls and device list)
+                    // 향상된 상태 카드 (이제 스캔 컨트롤과 디바이스 목록 포함)
                     EnhancedStatusCardView(bluetoothKit: bluetoothKit)
                         .frame(maxWidth: .infinity)
                     
-                    // Real-time Data Display and Controls (only when connected)
+                    // 실시간 데이터 표시 및 컨트롤 (연결된 경우에만)
                     if bluetoothKit.isConnected {
                         SensorDataView(bluetoothKit: bluetoothKit)
                             .frame(maxWidth: .infinity)
@@ -40,7 +40,7 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity)
                     }
                     
-                    // Enhanced Controls (only when connected)
+                    // 향상된 컨트롤 (연결된 경우에만)
                     if bluetoothKit.isConnected {
                         ControlsView(bluetoothKit: bluetoothKit)
                             .frame(maxWidth: .infinity)
@@ -59,11 +59,11 @@ struct ContentView: View {
                     }
                 }
             }
-            .alert("Bluetooth is turned off", isPresented: $bluetoothKit.isBluetoothDisabled) {
-                Button("Settings", action: openBluetoothSettings)
-                Button("Close", role: .cancel) { }
+            .alert("Bluetooth가 꺼져 있습니다", isPresented: $bluetoothKit.isBluetoothDisabled) {
+                Button("설정", action: openBluetoothSettings)
+                Button("닫기", role: .cancel) { }
             } message: {
-                Text("Please turn on Bluetooth to scan and connect to sensor devices.")
+                Text("센서 디바이스를 스캔하고 연결하려면 Bluetooth를 켜주세요.")
             }
             .sheet(isPresented: $showingRecordedFiles) {
                 RecordedFilesView(bluetoothKit: bluetoothKit)
@@ -73,11 +73,11 @@ struct ContentView: View {
     
     private var navigationTitle: String {
         if bluetoothKit.isConnected {
-            return "Sensor Monitor"
+            return "센서 모니터"
         } else if bluetoothKit.isScanning {
-            return "Scanning..."
+            return "스캔 중..."
         } else {
-            return "Device Scanner"
+            return "디바이스 스캐너"
         }
     }
     

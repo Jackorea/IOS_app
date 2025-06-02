@@ -11,7 +11,7 @@ struct BatteryDataCard: View {
             HStack {
                 Image(systemName: "battery.75")
                     .foregroundColor(batteryColor)
-                Text("Battery Level")
+                Text("배터리 레벨")
                     .font(.headline)
                 Spacer()
                 Text("\(reading.level)%")
@@ -25,7 +25,7 @@ struct BatteryDataCard: View {
                 .progressViewStyle(LinearProgressViewStyle(tint: batteryColor))
                 .frame(maxWidth: .infinity)
             
-            Text("Last updated: \(timeFormatter.string(from: reading.timestamp))")
+            Text("마지막 업데이트: \(timeFormatter.string(from: reading.timestamp))")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)

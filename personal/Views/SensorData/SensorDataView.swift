@@ -1,32 +1,32 @@
 import SwiftUI
 import BluetoothKit
 
-// MARK: - Sensor Data View
+// MARK: - 센서 데이터 뷰
 
 struct SensorDataView: View {
     @ObservedObject var bluetoothKit: BluetoothKit
     
     var body: some View {
         VStack(spacing: 16) {
-            // EEG Data Card
+            // EEG 데이터 카드
             if let eegReading = bluetoothKit.latestEEGReading {
                 EEGDataCard(reading: eegReading)
                     .frame(maxWidth: .infinity)
             }
             
-            // PPG Data Card
+            // PPG 데이터 카드
             if let ppgReading = bluetoothKit.latestPPGReading {
                 PPGDataCard(reading: ppgReading)
                     .frame(maxWidth: .infinity)
             }
             
-            // Accelerometer Data Card
+            // 가속도계 데이터 카드
             if let accelReading = bluetoothKit.latestAccelerometerReading {
                 AccelerometerDataCard(reading: accelReading)
                     .frame(maxWidth: .infinity)
             }
             
-            // Battery Data Card
+            // 배터리 데이터 카드
             if let batteryReading = bluetoothKit.latestBatteryReading {
                 BatteryDataCard(reading: batteryReading)
                     .frame(maxWidth: .infinity)

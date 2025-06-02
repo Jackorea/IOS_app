@@ -1,7 +1,7 @@
 import SwiftUI
 import BluetoothKit
 
-// MARK: - Recording Controls
+// MARK: - 녹화 컨트롤
 
 struct RecordingControlsView: View {
     @ObservedObject var bluetoothKit: BluetoothKit
@@ -11,14 +11,14 @@ struct RecordingControlsView: View {
             HStack {
                 if bluetoothKit.isRecording {
                     Button(action: { bluetoothKit.stopRecording() }) {
-                        Label("Stop Recording", systemImage: "stop.circle.fill")
+                        Label("녹화 중지", systemImage: "stop.circle.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                     .tint(.red)
                 } else {
                     Button(action: { bluetoothKit.startRecording() }) {
-                        Label("Start Recording", systemImage: "record.circle")
+                        Label("녹화 시작", systemImage: "record.circle")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
