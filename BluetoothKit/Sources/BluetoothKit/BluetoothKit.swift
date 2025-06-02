@@ -5,7 +5,7 @@ import CoreBluetooth
 
 /// A comprehensive Bluetooth Low Energy (BLE) library for connecting to sensor devices and collecting biomedical data.
 ///
-/// `BluetoothKit` provides a platform-agnostic interface for:
+/// `BluetoothKit` provides a simple interface for:
 /// - Scanning and connecting to Bluetooth devices
 /// - Receiving real-time sensor data (EEG, PPG, Accelerometer, Battery)
 /// - Recording data to files
@@ -14,16 +14,26 @@ import CoreBluetooth
 /// ## Usage
 ///
 /// ```swift
-/// class SensorDataHandler: BluetoothKitDelegate {
-///     func bluetoothKit(_ kit: BluetoothKit, didReceiveEEGReading reading: EEGReading) {
-///         print("EEG data: \(reading)")
+/// import SwiftUI
+/// import BluetoothKit
+///
+/// struct ContentView: View {
+///     @StateObject private var bluetoothKit = BluetoothKit()
+///     
+///     var body: some View {
+///         VStack {
+///             Text("Status: \(bluetoothKit.connectionState.description)")
+///             
+///             Button("Start Scanning") {
+///                 bluetoothKit.startScanning()
+///             }
+///             
+///             if let eegReading = bluetoothKit.latestEEGReading {
+///                 Text("EEG: \(eegReading.channel1) µV")
+///             }
+///         }
 ///     }
 /// }
-///
-/// let handler = SensorDataHandler()
-/// let bluetoothKit = BluetoothKit()
-/// bluetoothKit.delegate = handler
-/// bluetoothKit.startScanning()
 /// ```
 ///
 /// ## Configuration
@@ -108,13 +118,6 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     ///
     /// Automatically set to `true` when Bluetooth is turned off.
     @Published public var isBluetoothDisabled: Bool = false
-    
-    // MARK: - Delegate
-    
-    /// Delegate for receiving real-time sensor data callbacks.
-    ///
-    /// Implement `BluetoothKitDelegate` to receive sensor data as it arrives.
-    public weak var delegate: BluetoothKitDelegate?
     
     // MARK: - Private Components
     
@@ -357,9 +360,6 @@ extension BluetoothKit: BluetoothManagerDelegate {
         connectionState = state
         isScanning = bluetoothManager.isScanning
         
-        // Notify delegate
-        delegate?.bluetoothKit(self, didUpdateConnectionState: state)
-        
         // Handle Bluetooth off alert
         if case .failed(let error) = state,
            let bluetoothError = error as? BluetoothKitError,
@@ -373,9 +373,6 @@ extension BluetoothKit: BluetoothManagerDelegate {
     public func bluetoothManager(_ manager: AnyObject, didDiscoverDevice device: BluetoothDevice) {
         if !discoveredDevices.contains(device) {
             discoveredDevices.append(device)
-            
-            // Notify delegate
-            delegate?.bluetoothKit(self, didDiscoverDevice: device)
         }
     }
     
@@ -400,9 +397,6 @@ extension BluetoothKit: SensorDataDelegate {
     public func didReceiveEEGData(_ reading: EEGReading) {
         latestEEGReading = reading
         
-        // Notify delegate
-        delegate?.bluetoothKit(self, didReceiveEEGReading: reading)
-        
         // Record if recording is active
         if isRecording {
             dataRecorder.recordEEGData([reading])
@@ -416,9 +410,6 @@ extension BluetoothKit: SensorDataDelegate {
     public func didReceivePPGData(_ reading: PPGReading) {
         latestPPGReading = reading
         
-        // Notify delegate
-        delegate?.bluetoothKit(self, didReceivePPGReading: reading)
-        
         // Record if recording is active
         if isRecording {
             dataRecorder.recordPPGData([reading])
@@ -431,9 +422,6 @@ extension BluetoothKit: SensorDataDelegate {
     public func didReceiveAccelerometerData(_ reading: AccelerometerReading) {
         latestAccelerometerReading = reading
         
-        // Notify delegate
-        delegate?.bluetoothKit(self, didReceiveAccelerometerReading: reading)
-        
         // Record if recording is active
         if isRecording {
             dataRecorder.recordAccelerometerData([reading])
@@ -445,9 +433,6 @@ extension BluetoothKit: SensorDataDelegate {
     
     public func didReceiveBatteryData(_ reading: BatteryReading) {
         latestBatteryReading = reading
-        
-        // Notify delegate
-        delegate?.bluetoothKit(self, didReceiveBatteryReading: reading)
         
         // Record if recording is active
         if isRecording {
@@ -477,37 +462,5 @@ extension BluetoothKit: DataRecorderDelegate {
     public func dataRecorder(_ recorder: AnyObject, didFailWithError error: Error) {
         isRecording = false
         log("Recording error: \(error.localizedDescription)", level: .error)
-    }
-}
-
-// MARK: - Convenience Extensions
-
-@available(iOS 13.0, macOS 10.15, *)
-extension BluetoothKit {
-    
-    /// Get the latest sensor readings as a tuple for easy access
-    public var latestReadings: (eeg: EEGReading?, ppg: PPGReading?, accel: AccelerometerReading?, battery: BatteryReading?) {
-        return (latestEEGReading, latestPPGReading, latestAccelerometerReading, latestBatteryReading)
-    }
-    
-    /// Check if any sensor data has been received
-    public var hasReceivedData: Bool {
-        return latestEEGReading != nil || latestPPGReading != nil || latestAccelerometerReading != nil
-    }
-    
-    /// Get connection state as a simple boolean for UI binding
-    public var isConnectedBinding: Bool {
-        if case .connected = connectionState {
-            return true
-        }
-        return false
-    }
-    
-    /// Get scanning state for UI binding
-    public var isScanningBinding: Bool {
-        if case .scanning = connectionState {
-            return true
-        }
-        return false
     }
 } 
