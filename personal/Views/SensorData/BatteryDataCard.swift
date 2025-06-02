@@ -57,4 +57,8 @@ struct BatteryDataCard: View {
             return .red
         }
     }
+}
+
+#Preview {
+    BatteryDataCard(reading: BatteryReading(level: 75))
 } 
