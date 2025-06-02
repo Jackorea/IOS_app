@@ -25,12 +25,16 @@ public struct BluetoothDevice: Identifiable, Equatable, @unchecked Sendable {
 public struct EEGReading: Sendable {
     public let channel1: Double  // µV
     public let channel2: Double  // µV
+    public let ch1Raw: Int32     // Raw ADC value for channel 1
+    public let ch2Raw: Int32     // Raw ADC value for channel 2
     public let leadOff: Bool
     public let timestamp: Date
     
-    public init(channel1: Double, channel2: Double, leadOff: Bool, timestamp: Date = Date()) {
+    public init(channel1: Double, channel2: Double, ch1Raw: Int32, ch2Raw: Int32, leadOff: Bool, timestamp: Date = Date()) {
         self.channel1 = channel1
         self.channel2 = channel2
+        self.ch1Raw = ch1Raw
+        self.ch2Raw = ch2Raw
         self.leadOff = leadOff
         self.timestamp = timestamp
     }

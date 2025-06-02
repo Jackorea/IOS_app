@@ -67,5 +67,5 @@ struct EEGDataCard: View {
 }
 
 #Preview {
-    EEGDataCard(reading: EEGReading(channel1: 125.5, channel2: -88.2, leadOff: false))
+    EEGDataCard(reading: EEGReading(channel1: 125.5, channel2: -88.2, ch1Raw: 5000, ch2Raw: -3500, leadOff: false))
 } 

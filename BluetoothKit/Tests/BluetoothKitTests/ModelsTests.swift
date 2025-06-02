@@ -102,6 +102,8 @@ final class ModelsTests: XCTestCase {
         // Given
         let channel1 = 123.45
         let channel2 = -67.89
+        let ch1Raw: Int32 = 1000
+        let ch2Raw: Int32 = -1500
         let leadOff = true
         let timestamp = Date()
         
@@ -109,6 +111,8 @@ final class ModelsTests: XCTestCase {
         let reading = EEGReading(
             channel1: channel1,
             channel2: channel2,
+            ch1Raw: ch1Raw,
+            ch2Raw: ch2Raw,
             leadOff: leadOff,
             timestamp: timestamp
         )
@@ -116,6 +120,8 @@ final class ModelsTests: XCTestCase {
         // Then
         XCTAssertEqual(reading.channel1, channel1)
         XCTAssertEqual(reading.channel2, channel2)
+        XCTAssertEqual(reading.ch1Raw, ch1Raw)
+        XCTAssertEqual(reading.ch2Raw, ch2Raw)
         XCTAssertEqual(reading.leadOff, leadOff)
         XCTAssertEqual(reading.timestamp, timestamp)
     }

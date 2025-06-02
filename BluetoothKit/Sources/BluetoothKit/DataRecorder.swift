@@ -123,7 +123,7 @@ public class DataRecorder: @unchecked Sendable {
             // Write to CSV
             if let writer = eegCsvWriter {
                 let timestamp = reading.timestamp.timeIntervalSince1970
-                let line = "\(timestamp),\(reading.channel1),\(reading.channel2),\(reading.leadOff ? 1 : 0)\n"
+                let line = "\(timestamp),\(reading.ch1Raw),\(reading.ch2Raw),\(reading.channel1),\(reading.channel2),\(reading.leadOff ? 1 : 0)\n"
                 writer.write(line)
             }
         }
@@ -227,7 +227,7 @@ public class DataRecorder: @unchecked Sendable {
             throw BluetoothKitError.fileOperationFailed("Could not create EEG CSV file")
         }
         let writer = FileWriter(fileHandle: handle)
-        writer.write("timestamp,ch1uV,ch2uV,leadOff\n")
+        writer.write("timestamp,ch1Raw,ch2Raw,ch1uV,ch2uV,leadOff\n")
         eegCsvWriter = writer
         currentRecordingFiles.append(eegCsvURL)
     }

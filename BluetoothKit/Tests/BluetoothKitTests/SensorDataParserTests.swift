@@ -193,13 +193,13 @@ final class SensorDataParserTests: XCTestCase {
     
     func testEEGReadingValidation() {
         // Given: Valid EEG reading
-        let validReading = EEGReading(channel1: 50.0, channel2: -30.0, leadOff: false)
+        let validReading = EEGReading(channel1: 50.0, channel2: -30.0, ch1Raw: 1000, ch2Raw: -1000, leadOff: false)
         
         // When & Then
         XCTAssertTrue(parser.validateEEGReading(validReading))
         
         // Given: Invalid EEG reading (out of range)
-        let invalidReading = EEGReading(channel1: 300.0, channel2: -300.0, leadOff: false)
+        let invalidReading = EEGReading(channel1: 300.0, channel2: -300.0, ch1Raw: 3000, ch2Raw: -3000, leadOff: false)
         
         // When & Then
         XCTAssertFalse(parser.validateEEGReading(invalidReading))

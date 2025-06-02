@@ -64,6 +64,8 @@ internal class SensorDataParser: @unchecked Sendable {
             let reading = EEGReading(
                 channel1: ch1uV,
                 channel2: ch2uV,
+                ch1Raw: ch1Raw,
+                ch2Raw: ch2Raw,
                 leadOff: leadOffNormalized,
                 timestamp: Date(timeIntervalSince1970: timestamp)
             )
