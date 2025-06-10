@@ -2,20 +2,19 @@ import Foundation
 
 // MARK: - Data Recorder
 
-/// Class responsible for recording sensor data to files.
+/// 센서 데이터를 CSV 파일로 기록하고 관리하는 클래스입니다.
 ///
-/// Provides functionality to record EEG, PPG, accelerometer, and battery data
-/// to CSV and JSON files with proper concurrency safety.
-public class DataRecorder: @unchecked Sendable {
+/// 이 클래스는 실시간으로 수신되는 센서 데이터를 백그라운드에서 
+/// 효율적으로 CSV 파일에 저장합니다. BluetoothKit의 내부 구현체로 사용됩니다.
+internal class DataRecorder: @unchecked Sendable {
     
     // MARK: - Properties
     
+    /// 데이터 기록 이벤트를 처리하는 델리게이트입니다.
     public weak var delegate: DataRecorderDelegate?
     
     private var recordingState: RecordingState = .idle
-    private var recordingStartDate: Date?
-    private var recordingTimer: Timer?
-    private let logger: BluetoothKitLogger
+    private let logger: InternalLogger
     
     // File writers - using a serial queue for thread safety
     private let fileQueue = DispatchQueue(label: "com.bluetoothkit.filewriter", qos: .utility)
@@ -32,13 +31,12 @@ public class DataRecorder: @unchecked Sendable {
     
     // MARK: - Initialization
     
-    /// Creates a new DataRecorder instance.
+    /// 새로운 DataRecorder 인스턴스를 생성합니다.
     ///
-    /// - Parameter logger: Logger implementation for debugging
-    public init(logger: BluetoothKitLogger = DefaultLogger()) {
+    /// - Parameter logger: 로깅을 위한 내부 로거 (기본값: 비활성화)
+    public init(logger: InternalLogger = InternalLogger(isEnabled: false)) {
         self.logger = logger
         initializeRawDataDict()
-        log("DataRecorder initialized", level: .debug)
     }
     
     deinit {
@@ -49,15 +47,20 @@ public class DataRecorder: @unchecked Sendable {
     
     // MARK: - Public Interface
     
+    /// 현재 데이터 기록 중인지 여부를 나타냅니다.
     public var isRecording: Bool {
         return recordingState.isRecording
     }
     
+    /// 기록된 파일들이 저장되는 디렉토리 URL을 반환합니다.
     public var recordingsDirectory: URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0]
     }
     
+    /// 기록된 파일들의 URL 목록을 반환합니다.
+    ///
+    /// - Returns: 문서 디렉토리에 저장된 모든 기록 파일들의 URL 배열
     public func getRecordedFiles() -> [URL] {
         return (try? FileManager.default.contentsOfDirectory(
             at: recordingsDirectory,
@@ -65,10 +68,14 @@ public class DataRecorder: @unchecked Sendable {
         )) ?? []
     }
     
+    /// 센서 데이터 기록을 시작합니다.
+    ///
+    /// 이미 기록 중인 경우 오류를 발생시킵니다.
+    /// 기록 파일들(CSV, JSON)을 생성하고 기록 상태로 전환합니다.
     public func startRecording() {
         guard recordingState == .idle else {
             let error = BluetoothKitError.recordingFailed("Already recording")
-            log("Failed to start recording: Already recording", level: .warning)
+            log("Failed to start recording: Already recording")
             notifyRecordingError(error)
             return
         }
@@ -76,23 +83,21 @@ public class DataRecorder: @unchecked Sendable {
         do {
             try setupRecordingFiles()
             recordingState = .recording
-            recordingStartDate = Date()
-            startRecordingTimer()
             
-            let startDate = recordingStartDate!
+            let startDate = Date()
             notifyRecordingStarted(at: startDate)
-            log("Recording started", level: .info)
         } catch {
             notifyRecordingError(error)
-            log("Failed to start recording: \(error.localizedDescription)", level: .error)
+            log("Failed to start recording: \(error.localizedDescription)")
         }
     }
     
+    /// 센서 데이터 기록을 중지합니다.
+    ///
+    /// 기록 중이 아닌 경우 아무 작업도 수행하지 않습니다.
+    /// 모든 파일을 정리하고 기록 완료 이벤트를 발생시킵니다.
     public func stopRecording() {
         guard recordingState == .recording else { return }
-        
-        recordingState = .stopping
-        stopRecordingTimer()
         
         do {
             try finalizeRecording()
@@ -101,16 +106,18 @@ public class DataRecorder: @unchecked Sendable {
             let endDate = Date()
             let savedFiles = currentRecordingFiles
             notifyRecordingStopped(at: endDate, savedFiles: savedFiles)
-            log("Recording stopped. Files saved: \(currentRecordingFiles.count)", level: .info)
         } catch {
             recordingState = .idle
             notifyRecordingError(error)
-            log("Failed to stop recording: \(error.localizedDescription)", level: .error)
+            log("Failed to stop recording: \(error.localizedDescription)")
         }
     }
     
     // MARK: - Data Recording Methods
     
+    /// EEG 데이터를 기록합니다.
+    ///
+    /// - Parameter readings: 기록할 EEG 읽기값 배열
     public func recordEEGData(_ readings: [EEGReading]) {
         guard isRecording else { return }
         
@@ -129,6 +136,9 @@ public class DataRecorder: @unchecked Sendable {
         }
     }
     
+    /// PPG 데이터를 기록합니다.
+    ///
+    /// - Parameter readings: 기록할 PPG 읽기값 배열
     public func recordPPGData(_ readings: [PPGReading]) {
         guard isRecording else { return }
         
@@ -146,6 +156,9 @@ public class DataRecorder: @unchecked Sendable {
         }
     }
     
+    /// 가속도계 데이터를 기록합니다.
+    ///
+    /// - Parameter readings: 기록할 가속도계 읽기값 배열
     public func recordAccelerometerData(_ readings: [AccelerometerReading]) {
         guard isRecording else { return }
         
@@ -164,11 +177,13 @@ public class DataRecorder: @unchecked Sendable {
         }
     }
     
+    /// 배터리 데이터를 기록합니다.
+    ///
+    /// - Parameter reading: 기록할 배터리 읽기값
     public func recordBatteryData(_ reading: BatteryReading) {
         guard isRecording else { return }
         
-        // Battery data is not typically recorded in bulk, just logged
-        log("Battery: \(reading.level)%", level: .debug)
+        // Battery data is not typically recorded in bulk, just noted
     }
     
     // MARK: - Private Methods
@@ -256,19 +271,6 @@ public class DataRecorder: @unchecked Sendable {
         currentRecordingFiles.append(accelCsvURL)
     }
     
-    private func startRecordingTimer() {
-        recordingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self, self.isRecording else { return }
-            let currentTime = Date().timeIntervalSince1970 * 1000 // 밀리세컨드 단위
-            self.appendToRawDataDict("timestamp", value: currentTime)
-        }
-    }
-    
-    private func stopRecordingTimer() {
-        recordingTimer?.invalidate()
-        recordingTimer = nil
-    }
-    
     private func appendToRawDataDict<T>(_ key: String, value: T) {
         if var array = rawDataDict[key] as? [T] {
             array.append(value)
@@ -318,8 +320,8 @@ public class DataRecorder: @unchecked Sendable {
         accelCsvWriter = nil
     }
     
-    private func log(_ message: String, level: LogLevel, file: String = #file, function: String = #function, line: Int = #line) {
-        logger.log(message, level: level, file: file, function: function, line: line)
+    private func log(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        logger.log(message, file: file, function: function, line: line)
     }
     
     // MARK: - Private Helper Methods for Safe Delegate Calls

@@ -184,36 +184,4 @@ internal class SensorDataParser: @unchecked Sendable {
         
         return BatteryReading(level: level)
     }
-}
-
-// MARK: - Data Validation Extensions
-
-internal extension SensorDataParser {
-    
-    /// Validates EEG reading against configured parameters.
-    ///
-    /// - Parameter reading: EEG reading to validate
-    /// - Returns: `true` if reading is within valid range, `false` otherwise
-    func validateEEGReading(_ reading: EEGReading) -> Bool {
-        return configuration.eegValidRange.contains(reading.channel1) && 
-               configuration.eegValidRange.contains(reading.channel2)
-    }
-    
-    /// Validates PPG reading against configured parameters.
-    ///
-    /// - Parameter reading: PPG reading to validate
-    /// - Returns: `true` if reading values are valid, `false` otherwise
-    func validatePPGReading(_ reading: PPGReading) -> Bool {
-        return reading.red >= 0 && reading.red <= configuration.ppgMaxValue &&
-               reading.ir >= 0 && reading.ir <= configuration.ppgMaxValue
-    }
-    
-    /// Validates accelerometer reading.
-    ///
-    /// - Parameter reading: Accelerometer reading to validate
-    /// - Returns: `true` (Int16 type ensures valid range)
-    func validateAccelerometerReading(_ reading: AccelerometerReading) -> Bool {
-        // Int16 type ensures values are within valid range
-        return true
-    }
 } 

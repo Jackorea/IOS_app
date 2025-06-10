@@ -40,6 +40,12 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity)
                     }
                     
+                    // 배치 데이터 수집 설정 (연결된 경우에만)
+                    if bluetoothKit.isConnected {
+                        BatchDataCollectionView(bluetoothKit: bluetoothKit)
+                            .frame(maxWidth: .infinity)
+                    }
+                    
                     // 향상된 컨트롤 (연결된 경우에만)
                     if bluetoothKit.isConnected {
                         ControlsView(bluetoothKit: bluetoothKit)

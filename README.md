@@ -14,6 +14,7 @@ BluetoothKit is designed as a **pure data/logic SDK** without any UI dependencie
 ## ✨ Features
 
 - **Real-time sensor data**: EEG, PPG, Accelerometer, Battery monitoring
+- **Batch data collection**: Configure time-based or sample-count-based batch collection
 - **Delegate-based callbacks**: Receive data as it arrives from connected devices
 - **Automatic data recording**: Save sensor data to CSV files
 - **Connection management**: Auto-reconnection and state monitoring
@@ -22,7 +23,7 @@ BluetoothKit is designed as a **pure data/logic SDK** without any UI dependencie
 
 ## 🚀 Quick Start
 
-### 1. Basic Usage
+### 1. Basic Real-time Usage
 
 ```swift
 import BluetoothKit
@@ -61,7 +62,55 @@ if let device = bluetoothKit.discoveredDevices.first {
 }
 ```
 
-### 2. SwiftUI Integration
+### 2. Batch Data Collection
+
+```swift
+import BluetoothKit
+
+class BatchDataHandler: SensorBatchDataDelegate {
+    func didReceiveEEGBatch(_ readings: [EEGReading]) {
+        print("Received EEG batch with \(readings.count) samples")
+        // Process batch for FFT, filtering, etc.
+        processEEGBatch(readings)
+    }
+    
+    func didReceivePPGBatch(_ readings: [PPGReading]) {
+        print("Received PPG batch with \(readings.count) samples")
+        // Calculate heart rate from batch
+        calculateHeartRate(from: readings)
+    }
+    
+    func didReceiveAccelerometerBatch(_ readings: [AccelerometerReading]) {
+        print("Received accelerometer batch with \(readings.count) samples")
+        // Analyze motion patterns
+        analyzeMotion(readings)
+    }
+    
+    func didReceiveBatteryUpdate(_ reading: BatteryReading) {
+        print("Battery level: \(reading.level)%")
+    }
+}
+
+// Setup batch collection
+let batchHandler = BatchDataHandler()
+let bluetoothKit = BluetoothKit()
+bluetoothKit.batchDataDelegate = batchHandler
+
+// Configure batch collection
+// Time-based: collect every 0.5 seconds
+bluetoothKit.setDataCollection(timeInterval: 0.5, for: .eeg)
+
+// Sample-count-based: collect every 25 samples
+bluetoothKit.setDataCollection(sampleCount: 25, for: .ppg)
+
+// Disable specific sensor collection
+bluetoothKit.disableDataCollection(for: .accelerometer)
+
+// Disable all batch collection
+bluetoothKit.disableAllDataCollection()
+```
+
+### 3. SwiftUI Integration
 
 ```swift
 import SwiftUI
@@ -92,7 +141,7 @@ struct ContentView: View {
 }
 ```
 
-### 3. Custom Configuration
+### 4. Custom Configuration
 
 ```swift
 let config = SensorConfiguration(
@@ -110,6 +159,8 @@ let bluetoothKit = BluetoothKit(configuration: config)
 The main app includes example UI components that work with the BluetoothKit SDK:
 
 - `EnhancedStatusCardView`: Complete connection status and control interface
+- `BatchDataCollectionView`: Configure and monitor batch data collection
+- `BatchDataStatsView`: Real-time statistics for batch data reception
 - `DataRateIndicator`: Visual indicators for sensor data reception
 
 These are provided as examples - you can build your own UI components using the SDK's published properties and delegate callbacks.
@@ -126,6 +177,8 @@ BluetoothKit SDK (Pure Logic)
 
 Personal App (UI Layer)
 ├── Views/StatusCard/          # UI components
+├── Views/Controls/            # Batch collection controls
+├── Views/SensorData/          # Data visualization
 ├── ContentView.swift          # Main app view
 └── personalApp.swift         # App entry point
 ```
@@ -169,6 +222,68 @@ struct BatteryReading {
 }
 ```
 
+## 🎛️ Batch Data Collection API
+
+The SDK provides powerful batch data collection capabilities:
+
+### Setting Up Batch Collection
+
+```swift
+// Time-based collection (recommended for consistent intervals)
+bluetoothKit.setDataCollection(timeInterval: 1.0, for: .eeg)  // Every 1 second
+bluetoothKit.setDataCollection(timeInterval: 0.5, for: .ppg)  // Every 0.5 seconds
+
+// Sample-count-based collection (recommended for exact sample sizes)
+bluetoothKit.setDataCollection(sampleCount: 250, for: .eeg)        // Every 250 samples
+bluetoothKit.setDataCollection(sampleCount: 50, for: .ppg)         // Every 50 samples
+bluetoothKit.setDataCollection(sampleCount: 30, for: .accelerometer) // Every 30 samples
+```
+
+### Batch Collection Limits
+
+- **Time intervals**: 0.04 seconds (25ms) to 10.0 seconds
+- **Sample counts**: 1 to sensor-specific maximums
+  - EEG: up to 2500 samples (10 seconds at 250Hz)
+  - PPG: up to 500 samples (10 seconds at 50Hz)  
+  - Accelerometer: up to 300 samples (10 seconds at 30Hz)
+
+### Use Cases
+
+- **Real-time monitoring**: 0.1-0.5 second intervals for live feedback
+- **Signal analysis**: 1-2 second intervals for FFT and filtering
+- **Battery optimization**: 5-10 second intervals for longer operation
+- **Exact sample processing**: Use sample counts for algorithms requiring specific buffer sizes
+
+## 🔗 Delegate Protocols
+
+### Real-time Data Delegate
+
+Implement `BluetoothKitDelegate` to receive individual data points:
+
+```swift
+protocol BluetoothKitDelegate: AnyObject {
+    func bluetoothKit(_ kit: BluetoothKit, didReceiveEEGReading reading: EEGReading)
+    func bluetoothKit(_ kit: BluetoothKit, didReceivePPGReading reading: PPGReading)
+    func bluetoothKit(_ kit: BluetoothKit, didReceiveAccelerometerReading reading: AccelerometerReading)
+    func bluetoothKit(_ kit: BluetoothKit, didReceiveBatteryReading reading: BatteryReading)
+    func bluetoothKit(_ kit: BluetoothKit, didUpdateConnectionState state: ConnectionState)
+    func bluetoothKit(_ kit: BluetoothKit, didDiscoverDevice device: BluetoothDevice)
+}
+```
+
+### Batch Data Delegate
+
+Implement `SensorBatchDataDelegate` to receive data in batches:
+
+```swift
+protocol SensorBatchDataDelegate: AnyObject {
+    func didReceiveEEGBatch(_ readings: [EEGReading])
+    func didReceivePPGBatch(_ readings: [PPGReading])
+    func didReceiveAccelerometerBatch(_ readings: [AccelerometerReading])
+    func didReceiveBatteryUpdate(_ reading: BatteryReading)  // Individual updates only
+}
+```
+
 ## 🎛️ Configuration Options
 
 ```swift
@@ -180,21 +295,6 @@ struct SensorConfiguration {
     let autoReconnectEnabled: Bool         // Auto-reconnection
     let eegVoltageReference: Double        // Volts (2.5, 3.3, 5.0)
     let eegGain: Double                   // Amplification (1, 2, 4, 6, 8, 12, 24)
-}
-```
-
-## 🔗 Delegate Protocol
-
-Implement `BluetoothKitDelegate` to receive real-time callbacks:
-
-```swift
-protocol BluetoothKitDelegate: AnyObject {
-    func bluetoothKit(_ kit: BluetoothKit, didReceiveEEGReading reading: EEGReading)
-    func bluetoothKit(_ kit: BluetoothKit, didReceivePPGReading reading: PPGReading)
-    func bluetoothKit(_ kit: BluetoothKit, didReceiveAccelerometerReading reading: AccelerometerReading)
-    func bluetoothKit(_ kit: BluetoothKit, didReceiveBatteryReading reading: BatteryReading)
-    func bluetoothKit(_ kit: BluetoothKit, didUpdateConnectionState state: ConnectionState)
-    func bluetoothKit(_ kit: BluetoothKit, didDiscoverDevice device: BluetoothDevice)
 }
 ```
 

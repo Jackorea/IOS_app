@@ -1,13 +1,13 @@
 {
-  "originHash" : "9257698c4562db90f23489df0cd5deb15a25a3ca5367cb4933152fec889763db",
+  "originHash" : "63eaa0527fca73830bd3fb517719fee48a3dd0e18117f2213135216d8b28de67",
   "pins" : [
     {
-      "identity" : "ios_link_band_sdk",
+      "identity" : "test_spm",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Jackorea/IOS_link_band_sdk",
+      "location" : "https://github.com/Jackorea/test_spm.git",
       "state" : {
         "branch" : "main",
-        "revision" : "a2495caf894c3f559082cb6d4544051ed0f0ef6d"
+        "revision" : "69eb145c5ce22e47bde7f5231ad1e9573ff502ac"
       }
     }
   ],
