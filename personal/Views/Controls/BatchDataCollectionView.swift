@@ -8,12 +8,29 @@ struct BatchDataCollectionView: View {
     @ObservedObject var bluetoothKit: BluetoothKit
     
     @State private var selectedCollectionMode: CollectionMode = .sampleCount
-    @State private var sampleCount: Int = 500
-    @State private var durationSeconds: Int = 3
+    
+    // 센서별 개별 샘플 수 설정
+    @State private var eegSampleCount: Int = 250
+    @State private var ppgSampleCount: Int = 50
+    @State private var accelerometerSampleCount: Int = 30
+    
+    // 센서별 개별 시간 설정
+    @State private var eegDurationSeconds: Int = 1
+    @State private var ppgDurationSeconds: Int = 1
+    @State private var accelerometerDurationSeconds: Int = 1
+    
     @State private var selectedSensors: Set<SensorTypeOption> = [.eeg, .ppg, .accelerometer]
     @State private var isConfigured = false
-    @State private var sampleCountText: String = "500"
-    @State private var durationText: String = "3"
+    
+    // 센서별 개별 텍스트 필드
+    @State private var eegSampleCountText: String = "250"
+    @State private var ppgSampleCountText: String = "50"
+    @State private var accelerometerSampleCountText: String = "30"
+    
+    @State private var eegDurationText: String = "1"
+    @State private var ppgDurationText: String = "1"
+    @State private var accelerometerDurationText: String = "1"
+    
     @State private var showValidationError: Bool = false
     @State private var validationMessage: String = ""
     @State private var batchDelegate: BatchDataConsoleLogger?
@@ -27,7 +44,7 @@ struct BatchDataCollectionView: View {
     enum SensorTypeOption: String, CaseIterable {
         case eeg = "EEG"
         case ppg = "PPG"
-        case accelerometer = "가속도계"
+        case accelerometer = "ACC"
         
         var sdkType: SensorType {
             switch self {
@@ -75,7 +92,7 @@ struct BatchDataCollectionView: View {
                 .onChange(of: selectedCollectionMode) { _ in
                     // 설정이 이미 완료된 상태에서만 자동 적용
                     if isConfigured {
-                        autoApplyConfiguration()
+                        applyConfigurationChanges()
                     }
                 }
             }
@@ -110,55 +127,164 @@ struct BatchDataCollectionView: View {
             // 화면을 탭하면 키보드 숨기기
             isTextFieldFocused = false
         }
-        .onAppear {
-            setupBatchDelegate()
-        }
     }
     
     private var sampleCountConfiguration: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("목표 샘플 수")
+        VStack(alignment: .leading, spacing: 16) {
+            Text("센서별 목표 샘플 수")
                 .font(.subheadline)
                 .fontWeight(.medium)
             
+            // EEG 설정
             VStack(alignment: .leading, spacing: 8) {
+                Text("🧠 EEG")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.blue)
+                
                 HStack {
-                    TextField("예: 500", text: $sampleCountText)
+                    TextField("예: 250", text: $eegSampleCountText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .keyboardType(.numberPad)
                         .focused($isTextFieldFocused)
-                        .onChange(of: sampleCountText) { newValue in
-                            validateAndUpdateSampleCount(newValue)
+                        .onChange(of: eegSampleCountText) { newValue in
+                            validateAndUpdateSampleCount(newValue, for: .eeg)
                         }
                         .onAppear {
-                            sampleCountText = "\(sampleCount)"
+                            eegSampleCountText = "\(eegSampleCount)"
                         }
                     
                     Text("샘플")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // PPG 설정
+            VStack(alignment: .leading, spacing: 8) {
+                Text("❤️ PPG")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .fontWeight(.medium)
+                    .foregroundColor(.red)
+                
+                HStack {
+                    TextField("예: 50", text: $ppgSampleCountText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .keyboardType(.numberPad)
+                        .focused($isTextFieldFocused)
+                        .onChange(of: ppgSampleCountText) { newValue in
+                            validateAndUpdateSampleCount(newValue, for: .ppg)
+                        }
+                        .onAppear {
+                            ppgSampleCountText = "\(ppgSampleCount)"
+                        }
+                    
+                    Text("샘플")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // 가속도계 설정
+            VStack(alignment: .leading, spacing: 8) {
+                Text("🏃 ACC")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.green)
+                
+                HStack {
+                    TextField("예: 30", text: $accelerometerSampleCountText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .keyboardType(.numberPad)
+                        .focused($isTextFieldFocused)
+                        .onChange(of: accelerometerSampleCountText) { newValue in
+                            validateAndUpdateSampleCount(newValue, for: .accelerometer)
+                        }
+                        .onAppear {
+                            accelerometerSampleCountText = "\(accelerometerSampleCount)"
+                        }
+                    
+                    Text("샘플")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
             }
         }
     }
     
     private var durationConfiguration: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("수집 시간")
+        VStack(alignment: .leading, spacing: 16) {
+            Text("센서별 수집 시간")
                 .font(.subheadline)
                 .fontWeight(.medium)
             
+            // EEG 설정
             VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                    TextField("예: 3", text: $durationText)
+                Text("🧠 EEG")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.blue)
+                
+                HStack {
+                    TextField("예: 1", text: $eegDurationText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .keyboardType(.numberPad)
                         .focused($isTextFieldFocused)
-                        .onChange(of: durationText) { newValue in
-                            validateAndUpdateDuration(newValue)
+                        .onChange(of: eegDurationText) { newValue in
+                            validateAndUpdateDuration(newValue, for: .eeg)
                         }
                         .onAppear {
-                            durationText = "\(durationSeconds)"
+                            eegDurationText = "\(eegDurationSeconds)"
+                        }
+                    
+                    Text("초")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // PPG 설정
+            VStack(alignment: .leading, spacing: 8) {
+                Text("❤️ PPG")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.red)
+                
+                HStack {
+                    TextField("예: 1", text: $ppgDurationText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .keyboardType(.numberPad)
+                        .focused($isTextFieldFocused)
+                        .onChange(of: ppgDurationText) { newValue in
+                            validateAndUpdateDuration(newValue, for: .ppg)
+                        }
+                        .onAppear {
+                            ppgDurationText = "\(ppgDurationSeconds)"
+                        }
+                    
+                    Text("초")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // 가속도계 설정
+            VStack(alignment: .leading, spacing: 8) {
+                Text("🏃 ACC")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.green)
+                
+                HStack {
+                    TextField("예: 1", text: $accelerometerDurationText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .keyboardType(.numberPad)
+                        .focused($isTextFieldFocused)
+                        .onChange(of: accelerometerDurationText) { newValue in
+                            validateAndUpdateDuration(newValue, for: .accelerometer)
+                        }
+                        .onAppear {
+                            accelerometerDurationText = "\(accelerometerDurationSeconds)"
                         }
                     
                     Text("초")
@@ -193,7 +319,7 @@ struct BatchDataCollectionView: View {
             }
             // 설정이 이미 완료된 상태에서만 자동 적용
             if isConfigured {
-                autoApplyConfiguration()
+                applyConfigurationChanges()
             }
         }) {
             HStack {
@@ -221,7 +347,7 @@ struct BatchDataCollectionView: View {
     }
     
     private var configurationStatusView: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 12) {
             HStack {
                 Text("설정 완료")
                     .font(.subheadline)
@@ -229,14 +355,72 @@ struct BatchDataCollectionView: View {
                 
                 Spacer()
                 
+                Text("센서별 개별 설정")
+                    .font(.subheadline)
+                    .foregroundColor(.blue)
+            }
+            
+            VStack(spacing: 8) {
                 if selectedCollectionMode == .sampleCount {
-                    Text("샘플 수: \(sampleCount)")
-                        .font(.subheadline)
-                        .foregroundColor(.blue)
-                        } else {
-                    Text("시간: \(durationSeconds)초")
-                        .font(.subheadline)
-                        .foregroundColor(.blue)
+                    HStack {
+                        Text("🧠 EEG:")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text("\(eegSampleCount)개 샘플")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
+                    
+                    HStack {
+                        Text("❤️ PPG:")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                        Text("\(ppgSampleCount)개 샘플")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
+                    
+                    HStack {
+                        Text("🏃 ACC:")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                        Text("\(accelerometerSampleCount)개 샘플")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
+                } else {
+                    HStack {
+                        Text("🧠 EEG:")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text("\(eegDurationSeconds)초마다")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
+                    
+                    HStack {
+                        Text("❤️ PPG:")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                        Text("\(ppgDurationSeconds)초마다")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
+                    
+                    HStack {
+                        Text("🏃 ACC:")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                        Text("\(accelerometerDurationSeconds)초마다")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
                 }
             }
             
@@ -299,25 +483,20 @@ struct BatchDataCollectionView: View {
         }
     }
     
-    private func setupBatchDelegate() {
-        batchDelegate = BatchDataConsoleLogger()
-        bluetoothKit.batchDataDelegate = batchDelegate
-    }
-    
     // MARK: - Configuration Methods
     
     private func applyInitialConfiguration() {
-        guard !selectedSensors.isEmpty && bluetoothKit.isConnected else { return }
+        guard !selectedSensors.isEmpty else { return }
         
-        // 먼저 모든 데이터 수집 비활성화
-        bluetoothKit.disableAllDataCollection()
+        // 배치 데이터 델리게이트 등록
+        if batchDelegate == nil {
+            batchDelegate = BatchDataConsoleLogger()
+            bluetoothKit.batchDataDelegate = batchDelegate
+        }
         
-        // 배치 데이터 델리게이트 설정 (콘솔 출력용)
-        setupBatchDelegate()
-        
-        // 선택된 센서들에 대해 설정 적용
         for sensor in selectedSensors {
             if selectedCollectionMode == .sampleCount {
+                let sampleCount = getSampleCount(for: sensor)
                 bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensor.sdkType)
                 print("🔧 초기 설정: \(sensor.rawValue) - \(sampleCount)개 샘플마다 배치 수신")
                 
@@ -330,26 +509,27 @@ struct BatchDataCollectionView: View {
                     let expectedTime = Double(sampleCount) / 50.0 // PPG는 50Hz
                     print("   → PPG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
                 case .accelerometer:
-                    let expectedTime = Double(sampleCount) / 30.0 // 가속도계는 30Hz
-                    print("   → 가속도계: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                    let expectedTime = Double(sampleCount) / 30.0 // ACC는 30Hz
+                    print("   → ACC: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
                 case .battery:
                     break // 배터리는 예상 시간 출력 안함
                 }
             } else {
-                bluetoothKit.setDataCollection(timeInterval: TimeInterval(durationSeconds), for: sensor.sdkType)
-                print("🔧 초기 설정: \(sensor.rawValue) - \(durationSeconds)초마다 배치 수신")
+                let duration = getDuration(for: sensor)
+                bluetoothKit.setDataCollection(timeInterval: TimeInterval(duration), for: sensor.sdkType)
+                print("🔧 초기 설정: \(sensor.rawValue) - \(duration)초마다 배치 수신")
                 
                 // 각 센서별 예상 샘플 수 출력
                 switch sensor.sdkType {
                 case .eeg:
-                    let expectedSamples = durationSeconds * 250 // EEG는 250Hz
-                    print("   → EEG: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                    let expectedSamples = duration * 250 // EEG는 250Hz
+                    print("   → EEG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
                 case .ppg:
-                    let expectedSamples = durationSeconds * 50 // PPG는 50Hz
-                    print("   → PPG: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                    let expectedSamples = duration * 50 // PPG는 50Hz
+                    print("   → PPG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
                 case .accelerometer:
-                    let expectedSamples = durationSeconds * 30 // 가속도계는 30Hz
-                    print("   → 가속도계: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                    let expectedSamples = duration * 30 // ACC는 30Hz
+                    print("   → ACC: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
                 case .battery:
                     break // 배터리는 예상 샘플 수 출력 안함
                 }
@@ -357,28 +537,12 @@ struct BatchDataCollectionView: View {
         }
         
         isConfigured = true
-        print("✅ 배치 데이터 수집 시작 - 이제 센서 변경 시 자동 적용됩니다")
     }
     
-    private func autoApplyConfiguration() {
-        // 설정이 완료된 상태에서만 자동 적용
-        guard isConfigured else { return }
-        
-        // 연결되지 않았거나 센서가 선택되지 않은 경우 설정 해제
-        guard bluetoothKit.isConnected && !selectedSensors.isEmpty else {
-            removeConfiguration()
-            return
-        }
-        
-        // 기존 설정 제거 후 새로 적용
-        bluetoothKit.disableAllDataCollection()
-        
-        // 배치 데이터 델리게이트 설정 (콘솔 출력용)
-        setupBatchDelegate()
-        
-        // 선택된 센서들에 대해 설정 적용
+    private func applyConfigurationChanges() {
         for sensor in selectedSensors {
             if selectedCollectionMode == .sampleCount {
+                let sampleCount = getSampleCount(for: sensor)
                 bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensor.sdkType)
                 print("🔄 자동 변경: \(sensor.rawValue) - \(sampleCount)개 샘플마다 배치 수신")
                 
@@ -391,33 +555,50 @@ struct BatchDataCollectionView: View {
                     let expectedTime = Double(sampleCount) / 50.0 // PPG는 50Hz
                     print("   → PPG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
                 case .accelerometer:
-                    let expectedTime = Double(sampleCount) / 30.0 // 가속도계는 30Hz
-                    print("   → 가속도계: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                    let expectedTime = Double(sampleCount) / 30.0 // ACC는 30Hz
+                    print("   → ACC: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
                 case .battery:
                     break // 배터리는 예상 시간 출력 안함
                 }
             } else {
-                bluetoothKit.setDataCollection(timeInterval: TimeInterval(durationSeconds), for: sensor.sdkType)
-                print("🔄 자동 변경: \(sensor.rawValue) - \(durationSeconds)초마다 배치 수신")
+                let duration = getDuration(for: sensor)
+                bluetoothKit.setDataCollection(timeInterval: TimeInterval(duration), for: sensor.sdkType)
+                print("🔄 자동 변경: \(sensor.rawValue) - \(duration)초마다 배치 수신")
                 
                 // 각 센서별 예상 샘플 수 출력
                 switch sensor.sdkType {
                 case .eeg:
-                    let expectedSamples = durationSeconds * 250 // EEG는 250Hz
-                    print("   → EEG: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                    let expectedSamples = duration * 250 // EEG는 250Hz
+                    print("   → EEG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
                 case .ppg:
-                    let expectedSamples = durationSeconds * 50 // PPG는 50Hz
-                    print("   → PPG: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                    let expectedSamples = duration * 50 // PPG는 50Hz
+                    print("   → PPG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
                 case .accelerometer:
-                    let expectedSamples = durationSeconds * 30 // 가속도계는 30Hz
-                    print("   → 가속도계: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                    let expectedSamples = duration * 30 // ACC는 30Hz
+                    print("   → ACC: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
                 case .battery:
                     break // 배터리는 예상 샘플 수 출력 안함
                 }
             }
         }
-        
-        print("✅ 센서 설정 자동 변경 완료")
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func getSampleCount(for sensor: SensorTypeOption) -> Int {
+        switch sensor {
+        case .eeg: return eegSampleCount
+        case .ppg: return ppgSampleCount
+        case .accelerometer: return accelerometerSampleCount
+        }
+    }
+    
+    private func getDuration(for sensor: SensorTypeOption) -> Int {
+        switch sensor {
+        case .eeg: return eegDurationSeconds
+        case .ppg: return ppgDurationSeconds
+        case .accelerometer: return accelerometerDurationSeconds
+        }
     }
     
     private func removeConfiguration() {
@@ -431,7 +612,7 @@ struct BatchDataCollectionView: View {
     
     // MARK: - Validation Methods
     
-    private func validateAndUpdateSampleCount(_ text: String) {
+    private func validateAndUpdateSampleCount(_ text: String, for sensor: SensorTypeOption) {
         guard let value = Int(text), value > 0 else {
             if !text.isEmpty {
                 showValidationError = true
@@ -441,11 +622,19 @@ struct BatchDataCollectionView: View {
         }
         
         let clampedValue = max(1, min(value, 100000))
-        sampleCount = clampedValue
+        switch sensor {
+        case .eeg: eegSampleCount = clampedValue
+        case .ppg: ppgSampleCount = clampedValue
+        case .accelerometer: accelerometerSampleCount = clampedValue
+        }
         
         if clampedValue != value {
             DispatchQueue.main.async {
-                sampleCountText = "\(clampedValue)"
+                switch sensor {
+                case .eeg: eegSampleCountText = "\(clampedValue)"
+                case .ppg: ppgSampleCountText = "\(clampedValue)"
+                case .accelerometer: accelerometerSampleCountText = "\(clampedValue)"
+                }
             }
         }
         
@@ -453,11 +642,11 @@ struct BatchDataCollectionView: View {
         
         // 설정이 이미 완료된 상태에서만 자동 적용
         if isConfigured {
-            autoApplyConfiguration()
+            applyConfigurationChanges()
         }
     }
     
-    private func validateAndUpdateDuration(_ text: String) {
+    private func validateAndUpdateDuration(_ text: String, for sensor: SensorTypeOption) {
         guard let value = Int(text), value > 0 else {
             if !text.isEmpty {
                 showValidationError = true
@@ -467,11 +656,19 @@ struct BatchDataCollectionView: View {
         }
         
         let clampedValue = max(1, min(value, 3600))
-        durationSeconds = clampedValue
+        switch sensor {
+        case .eeg: eegDurationSeconds = clampedValue
+        case .ppg: ppgDurationSeconds = clampedValue
+        case .accelerometer: accelerometerDurationSeconds = clampedValue
+        }
         
         if clampedValue != value {
             DispatchQueue.main.async {
-                durationText = "\(clampedValue)"
+                switch sensor {
+                case .eeg: eegDurationText = "\(clampedValue)"
+                case .ppg: ppgDurationText = "\(clampedValue)"
+                case .accelerometer: accelerometerDurationText = "\(clampedValue)"
+                }
             }
         }
         
@@ -479,7 +676,7 @@ struct BatchDataCollectionView: View {
         
         // 설정이 이미 완료된 상태에서만 자동 적용
         if isConfigured {
-            autoApplyConfiguration()
+            applyConfigurationChanges()
         }
     }
 }
@@ -513,7 +710,7 @@ class BatchDataConsoleLogger: SensorBatchDataDelegate {
         
         // 모든 PPG 샘플 출력
         for (index, reading) in readings.enumerated() {
-            print("   📊 샘플 #\(index + 1): Red=\(reading.red), IR=\(reading.ir)")
+            print("   📊 샘플 #\(index + 1): RED=\(reading.red), IR=\(reading.ir)")
         }
         print("") // 배치 간 구분을 위한 빈 줄
     }
@@ -523,9 +720,9 @@ class BatchDataConsoleLogger: SensorBatchDataDelegate {
         batchCount["ACCEL"] = count
         let elapsed = Date().timeIntervalSince(startTime)
         
-        print("🏃 가속도계 배치 #\(count) 수신 - \(readings.count)개 샘플 (경과: \(String(format: "%.1f", elapsed))초)")
+        print("🏃 ACC 배치 #\(count) 수신 - \(readings.count)개 샘플 (경과: \(String(format: "%.1f", elapsed))초)")
         
-        // 모든 가속도계 샘플 출력
+        // 모든 ACC 샘플 출력
         for (index, reading) in readings.enumerated() {
             print("   📊 샘플 #\(index + 1): X=\(reading.x), Y=\(reading.y), Z=\(reading.z)")
         }

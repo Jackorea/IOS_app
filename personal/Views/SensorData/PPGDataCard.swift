@@ -19,7 +19,7 @@ struct PPGDataCard: View {
             
             HStack(spacing: 30) {
                 VStack {
-                    Text("적색")
+                    Text("RED")
                         .font(.caption)
                         .foregroundColor(.gray)
                     Text("\(reading.red)")
@@ -29,7 +29,7 @@ struct PPGDataCard: View {
                 .frame(maxWidth: .infinity)
                 
                 VStack {
-                    Text("적외선")
+                    Text("IR")
                         .font(.caption)
                         .foregroundColor(.gray)
                     Text("\(reading.ir)")

@@ -41,10 +41,10 @@ struct EEGDataCard: View {
                 .frame(maxWidth: .infinity)
                 
                 VStack {
-                    Text("상태")
+                    Text("센서 접촉 상태")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text(reading.leadOff ? "연결 해제됨" : "연결됨")
+                    Text(reading.leadOff ? "접촉 안됨" : "연결됨")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(reading.leadOff ? .red : .green)
