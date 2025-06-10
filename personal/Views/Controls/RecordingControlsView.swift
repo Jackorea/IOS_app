@@ -1,41 +1,37 @@
 import SwiftUI
 import BluetoothKit
 
-// MARK: - 녹화 컨트롤
+// MARK: - 기록 컨트롤
 
+/// 센서 데이터 기록을 시작/중지하는 컨트롤 뷰
 struct RecordingControlsView: View {
     @ObservedObject var bluetoothKit: BluetoothKit
     
     var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                if bluetoothKit.isRecording {
-                    Button(action: { bluetoothKit.stopRecording() }) {
-                        Label("녹화 중지", systemImage: "stop.circle.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                } else {
-                    Button(action: { bluetoothKit.startRecording() }) {
-                        Label("녹화 시작", systemImage: "record.circle")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
+        Button(action: {
+            if bluetoothKit.isRecording {
+                bluetoothKit.stopRecording()
+            } else {
+                bluetoothKit.startRecording()
             }
-            .frame(maxWidth: .infinity)
+        }) {
+            if bluetoothKit.isRecording {
+                Label("기록 중지", systemImage: "stop.circle.fill")
+                    .foregroundColor(.red)
+                    .font(.headline)
+                    .padding()
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(8)
+            } else {
+                Label("기록 시작", systemImage: "record.circle")
+                    .foregroundColor(.blue)
+                    .font(.headline)
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.orange.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                )
-        )
+        .disabled(!bluetoothKit.isConnected)
     }
 }
 

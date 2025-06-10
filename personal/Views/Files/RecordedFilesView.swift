@@ -18,9 +18,9 @@ struct RecordedFilesView: View {
             Group {
                 if recordedFiles.isEmpty {
                     ContentUnavailableView(
-                        "녹화 파일 없음",
+                        "기록 파일 없음",
                         systemImage: "folder",
-                        description: Text("센서 데이터 녹화를 시작하면 여기에 파일이 표시됩니다.")
+                        description: Text("센서 데이터 기록을 시작하면 여기에 파일이 표시됩니다.")
                     )
                 } else {
                     List {
@@ -41,7 +41,7 @@ struct RecordedFilesView: View {
                     }
                 }
             }
-            .navigationTitle("녹화된 파일")
+            .navigationTitle("기록된 파일")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {

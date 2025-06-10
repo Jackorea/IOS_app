@@ -8,16 +8,16 @@ struct BatchDataCollectionView: View {
     @ObservedObject var bluetoothKit: BluetoothKit
     
     @State private var selectedCollectionMode: CollectionMode = .sampleCount
-    @State private var sampleCount: Int = 1000
-    @State private var durationSeconds: Int = 30
+    @State private var sampleCount: Int = 500
+    @State private var durationSeconds: Int = 3
     @State private var selectedSensors: Set<SensorTypeOption> = [.eeg, .ppg, .accelerometer]
     @State private var isConfigured = false
-    @State private var sampleCountText: String = "1000"
-    @State private var durationText: String = "30"
+    @State private var sampleCountText: String = "500"
+    @State private var durationText: String = "3"
     @State private var showValidationError: Bool = false
     @State private var validationMessage: String = ""
     @State private var batchDelegate: BatchDataConsoleLogger?
-    @State private var stopBatchWithRecording: Bool = false
+    @FocusState private var isTextFieldFocused: Bool
     
     enum CollectionMode: String, CaseIterable {
         case sampleCount = "샘플 수"
@@ -28,14 +28,12 @@ struct BatchDataCollectionView: View {
         case eeg = "EEG"
         case ppg = "PPG"
         case accelerometer = "가속도계"
-        case battery = "배터리"
         
         var sdkType: SensorType {
             switch self {
             case .eeg: return .eeg
             case .ppg: return .ppg
             case .accelerometer: return .accelerometer
-            case .battery: return .battery
             }
         }
     }
@@ -61,11 +59,6 @@ struct BatchDataCollectionView: View {
                 }
             }
             
-            // 배치 수집 예시 설명
-            batchCollectionExplanation
-            
-            Divider()
-            
             // 수집 모드 선택
             VStack(alignment: .leading, spacing: 12) {
                 Text("수집 모드")
@@ -79,6 +72,12 @@ struct BatchDataCollectionView: View {
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
+                .onChange(of: selectedCollectionMode) { _ in
+                    // 설정이 이미 완료된 상태에서만 자동 적용
+                    if isConfigured {
+                        autoApplyConfiguration()
+                    }
+                }
             }
             
             // 수집 설정
@@ -93,18 +92,13 @@ struct BatchDataCollectionView: View {
             // 센서 선택
             sensorSelectionView
             
-            // 배치 수집 제어 옵션
-            if isConfigured {
-                batchControlOptions
-            }
-            
             // 설정 상태
             if isConfigured {
                 configurationStatusView
             }
             
-            // 수집 컨트롤 버튼
-            collectionControlButtons
+            // 수집 컨트롤 버튼 (간소화)
+            simplifiedControlButtons
         }
         .padding()
         .background(
@@ -112,36 +106,13 @@ struct BatchDataCollectionView: View {
                 .fill(Color.gray.opacity(0.1))
                 .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
         )
+        .onTapGesture {
+            // 화면을 탭하면 키보드 숨기기
+            isTextFieldFocused = false
+        }
         .onAppear {
             setupBatchDelegate()
         }
-    }
-    
-    private var batchCollectionExplanation: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("📊 배치 데이터 수집 방식")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.blue)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text("• 시간 기반: 1초 → 1초마다 250개 EEG 샘플 수신")
-                Text("• 시간 기반: 2초 → 2초마다 500개 EEG 샘플 수신")
-                Text("• 샘플 기반: 1000개 → 4초 후 1000개 EEG 샘플 수신")
-                Text("• 콘솔에서 배치 수신 시점과 샘플 개수 확인 가능")
-            }
-            .font(.caption)
-            .foregroundColor(.secondary)
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.blue.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                )
-        )
     }
     
     private var sampleCountConfiguration: some View {
@@ -152,9 +123,10 @@ struct BatchDataCollectionView: View {
             
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    TextField("예: 1000", text: $sampleCountText)
+                    TextField("예: 500", text: $sampleCountText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .keyboardType(.numberPad)
+                        .focused($isTextFieldFocused)
                         .onChange(of: sampleCountText) { newValue in
                             validateAndUpdateSampleCount(newValue)
                         }
@@ -163,20 +135,8 @@ struct BatchDataCollectionView: View {
                         }
                     
                     Text("샘플")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
-                    Text("• 최소: 1 샘플")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Text("• 최대: 100,000 샘플")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                 }
             }
         }
@@ -189,10 +149,11 @@ struct BatchDataCollectionView: View {
                 .fontWeight(.medium)
             
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    TextField("예: 30", text: $durationText)
+            HStack {
+                    TextField("예: 3", text: $durationText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .keyboardType(.numberPad)
+                        .focused($isTextFieldFocused)
                         .onChange(of: durationText) { newValue in
                             validateAndUpdateDuration(newValue)
                         }
@@ -202,18 +163,6 @@ struct BatchDataCollectionView: View {
                     
                     Text("초")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
-                    Text("• 최소: 1초")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Text("• 최대: 3,600초 (1시간)")
-                        .font(.caption2)
                         .foregroundColor(.secondary)
                 }
             }
@@ -242,6 +191,10 @@ struct BatchDataCollectionView: View {
             } else {
                 selectedSensors.insert(sensor)
             }
+            // 설정이 이미 완료된 상태에서만 자동 적용
+            if isConfigured {
+                autoApplyConfiguration()
+            }
         }) {
             HStack {
                 Image(systemName: selectedSensors.contains(sensor) ? "checkmark.circle.fill" : "circle")
@@ -249,7 +202,7 @@ struct BatchDataCollectionView: View {
                 
                 Text(sensor.rawValue)
                     .font(.subheadline)
-                    .foregroundColor(.primary)
+                        .foregroundColor(.primary)
                 
                 Spacer()
             }
@@ -265,19 +218,6 @@ struct BatchDataCollectionView: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
-    }
-    
-    private var batchControlOptions: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("배치 수집 제어 옵션")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.secondary)
-            
-            Toggle("배치 수집 중지 시 데이터 수집 중지", isOn: $stopBatchWithRecording)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-        }
     }
     
     private var configurationStatusView: some View {
@@ -315,11 +255,11 @@ struct BatchDataCollectionView: View {
         )
     }
     
-    private var collectionControlButtons: some View {
+    private var simplifiedControlButtons: some View {
         VStack(spacing: 12) {
             if isConfigured {
                 HStack(spacing: 12) {
-                    Button("설정 해제") {
+                    Button("전체 해제") {
                         removeConfiguration()
                     }
                     .buttonStyle(.bordered)
@@ -328,62 +268,45 @@ struct BatchDataCollectionView: View {
                     
                     Button(bluetoothKit.isRecording ? "기록 중지" : "기록 시작") {
                         if bluetoothKit.isRecording {
-                            stopDataCollection()
-                        } else {
-                            startDataCollection()
+                            bluetoothKit.stopRecording()
+                    } else {
+                            bluetoothKit.startRecording()
                         }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(bluetoothKit.isRecording ? .red : .green)
                     .frame(maxWidth: .infinity)
                 }
+                
+                Text("💡 센서 선택을 변경하면 자동으로 적용됩니다")
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .multilineTextAlignment(.center)
             } else {
                 Button("설정 적용") {
-                    applyConfiguration()
+                    applyInitialConfiguration()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.blue)
                 .frame(maxWidth: .infinity)
                 .disabled(selectedSensors.isEmpty || !bluetoothKit.isConnected)
+                
+                Text("센서를 선택하고 설정 적용을 눌러주세요")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
             }
         }
     }
     
-    private func startDataCollection() {
-        print("🟢 기록 시작")
-        
-        // 배치 데이터 델리게이트 다시 설정 (혹시 없어졌을 경우 대비)
-        if batchDelegate == nil {
-            setupBatchDelegate()
-        }
-        
-        bluetoothKit.startRecording()
-        print("✅ 기록이 시작되었습니다 - 배치 데이터 수신 중...")
+    private func setupBatchDelegate() {
+        batchDelegate = BatchDataConsoleLogger()
+        bluetoothKit.batchDataDelegate = batchDelegate
     }
     
-    private func stopDataCollection() {
-        print("🔴 기록 중지")
-        
-        // 1. 기록 중지
-        bluetoothKit.stopRecording()
-        
-        // 2. 사용자 설정에 따라 배치 데이터 수집도 중지
-        if stopBatchWithRecording {
-            print("⏹️ 배치 데이터 수집도 함께 중지합니다")
-            bluetoothKit.disableAllDataCollection()
-            bluetoothKit.batchDataDelegate = nil
-            batchDelegate = nil
-            isConfigured = false
-            print("❌ 모든 데이터 수집이 중지되었습니다")
-        } else {
-            print("⏹️ 기록이 중지되었습니다")
-            print("💡 배치 데이터 수집은 계속 활성화 상태입니다")
-            print("   → 콘솔에서 배치 데이터가 계속 수신됩니다")
-            print("   → 완전히 중지하려면 '설정 해제' 버튼을 누르세요")
-        }
-    }
+    // MARK: - Configuration Methods
     
-    private func applyConfiguration() {
+    private func applyInitialConfiguration() {
         guard !selectedSensors.isEmpty && bluetoothKit.isConnected else { return }
         
         // 먼저 모든 데이터 수집 비활성화
@@ -396,44 +319,114 @@ struct BatchDataCollectionView: View {
         for sensor in selectedSensors {
             if selectedCollectionMode == .sampleCount {
                 bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensor.sdkType)
-                print("🔧 설정 적용: \(sensor.rawValue) - \(sampleCount)개 샘플마다 배치 수신")
+                print("🔧 초기 설정: \(sensor.rawValue) - \(sampleCount)개 샘플마다 배치 수신")
+                
+                // 각 센서별 예상 시간 출력
+                switch sensor.sdkType {
+                case .eeg:
+                    let expectedTime = Double(sampleCount) / 250.0 // EEG는 250Hz
+                    print("   → EEG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                case .ppg:
+                    let expectedTime = Double(sampleCount) / 50.0 // PPG는 50Hz
+                    print("   → PPG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                case .accelerometer:
+                    let expectedTime = Double(sampleCount) / 30.0 // 가속도계는 30Hz
+                    print("   → 가속도계: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                case .battery:
+                    break // 배터리는 예상 시간 출력 안함
+                }
             } else {
                 bluetoothKit.setDataCollection(timeInterval: TimeInterval(durationSeconds), for: sensor.sdkType)
-                print("🔧 설정 적용: \(sensor.rawValue) - \(durationSeconds)초마다 배치 수신")
+                print("🔧 초기 설정: \(sensor.rawValue) - \(durationSeconds)초마다 배치 수신")
                 
-                // EEG의 경우 예상 샘플 수 출력
-                if sensor.sdkType == .eeg {
+                // 각 센서별 예상 샘플 수 출력
+                switch sensor.sdkType {
+                case .eeg:
                     let expectedSamples = durationSeconds * 250 // EEG는 250Hz
                     print("   → EEG: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                case .ppg:
+                    let expectedSamples = durationSeconds * 50 // PPG는 50Hz
+                    print("   → PPG: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                case .accelerometer:
+                    let expectedSamples = durationSeconds * 30 // 가속도계는 30Hz
+                    print("   → 가속도계: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                case .battery:
+                    break // 배터리는 예상 샘플 수 출력 안함
                 }
             }
         }
         
         isConfigured = true
-        print("✅ 배치 데이터 수집 설정 완료")
-        print("💡 '기록 시작' 버튼을 눌러 데이터 수신을 시작하세요")
+        print("✅ 배치 데이터 수집 시작 - 이제 센서 변경 시 자동 적용됩니다")
+    }
+    
+    private func autoApplyConfiguration() {
+        // 설정이 완료된 상태에서만 자동 적용
+        guard isConfigured else { return }
+        
+        // 연결되지 않았거나 센서가 선택되지 않은 경우 설정 해제
+        guard bluetoothKit.isConnected && !selectedSensors.isEmpty else {
+            removeConfiguration()
+            return
+        }
+        
+        // 기존 설정 제거 후 새로 적용
+        bluetoothKit.disableAllDataCollection()
+        
+        // 배치 데이터 델리게이트 설정 (콘솔 출력용)
+        setupBatchDelegate()
+        
+        // 선택된 센서들에 대해 설정 적용
+        for sensor in selectedSensors {
+            if selectedCollectionMode == .sampleCount {
+                bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensor.sdkType)
+                print("🔄 자동 변경: \(sensor.rawValue) - \(sampleCount)개 샘플마다 배치 수신")
+                
+                // 각 센서별 예상 시간 출력
+                switch sensor.sdkType {
+                case .eeg:
+                    let expectedTime = Double(sampleCount) / 250.0 // EEG는 250Hz
+                    print("   → EEG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                case .ppg:
+                    let expectedTime = Double(sampleCount) / 50.0 // PPG는 50Hz
+                    print("   → PPG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                case .accelerometer:
+                    let expectedTime = Double(sampleCount) / 30.0 // 가속도계는 30Hz
+                    print("   → 가속도계: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                case .battery:
+                    break // 배터리는 예상 시간 출력 안함
+                }
+            } else {
+                bluetoothKit.setDataCollection(timeInterval: TimeInterval(durationSeconds), for: sensor.sdkType)
+                print("🔄 자동 변경: \(sensor.rawValue) - \(durationSeconds)초마다 배치 수신")
+                
+                // 각 센서별 예상 샘플 수 출력
+                switch sensor.sdkType {
+                case .eeg:
+                    let expectedSamples = durationSeconds * 250 // EEG는 250Hz
+                    print("   → EEG: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                case .ppg:
+                    let expectedSamples = durationSeconds * 50 // PPG는 50Hz
+                    print("   → PPG: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                case .accelerometer:
+                    let expectedSamples = durationSeconds * 30 // 가속도계는 30Hz
+                    print("   → 가속도계: \(durationSeconds)초마다 약 \(expectedSamples)개 샘플 예상")
+                case .battery:
+                    break // 배터리는 예상 샘플 수 출력 안함
+                }
+            }
+        }
+        
+        print("✅ 센서 설정 자동 변경 완료")
     }
     
     private func removeConfiguration() {
-        print("🔴 배치 데이터 수집 완전 중지")
-        
-        // 기록도 중지
-        if bluetoothKit.isRecording {
-            bluetoothKit.stopRecording()
-        }
-        
-        // 배치 데이터 수집 완전 해제
         bluetoothKit.disableAllDataCollection()
+        // batchDelegate를 nil로 설정하여 콘솔 출력 중지
         bluetoothKit.batchDataDelegate = nil
         batchDelegate = nil
         isConfigured = false
-        
-        print("❌ 모든 데이터 수집이 중지되었습니다")
-    }
-    
-    private func setupBatchDelegate() {
-        batchDelegate = BatchDataConsoleLogger()
-        bluetoothKit.batchDataDelegate = batchDelegate
+        print("❌ 배치 데이터 수집 설정 해제")
     }
     
     // MARK: - Validation Methods
@@ -457,6 +450,11 @@ struct BatchDataCollectionView: View {
         }
         
         showValidationError = false
+        
+        // 설정이 이미 완료된 상태에서만 자동 적용
+        if isConfigured {
+            autoApplyConfiguration()
+        }
     }
     
     private func validateAndUpdateDuration(_ text: String) {
@@ -478,6 +476,11 @@ struct BatchDataCollectionView: View {
         }
         
         showValidationError = false
+        
+        // 설정이 이미 완료된 상태에서만 자동 적용
+        if isConfigured {
+            autoApplyConfiguration()
+        }
     }
 }
 

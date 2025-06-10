@@ -49,7 +49,7 @@ struct EnhancedStatusCardView: View {
                 Image(systemName: "record.circle.fill")
                     .foregroundColor(.red)
                     .symbolEffect(.pulse)
-                Text("녹화")
+                Text("기록")
                     .font(.caption2)
                     .fontWeight(.bold)
                     .foregroundColor(.red)
