@@ -109,11 +109,6 @@ struct BatchDataCollectionView: View {
             // 센서 선택
             sensorSelectionView
             
-            // 설정 상태
-            if isConfigured {
-                configurationStatusView
-            }
-            
             // 수집 컨트롤 버튼 (간소화)
             simplifiedControlButtons
         }
@@ -344,99 +339,6 @@ struct BatchDataCollectionView: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
-    }
-    
-    private var configurationStatusView: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("설정 완료")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                Spacer()
-                
-                Text("센서별 개별 설정")
-                    .font(.subheadline)
-                    .foregroundColor(.blue)
-            }
-            
-            VStack(spacing: 8) {
-                if selectedCollectionMode == .sampleCount {
-                    HStack {
-                        Text("🧠 EEG:")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Text("\(eegSampleCount)개 샘플")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        Spacer()
-                    }
-                    
-                    HStack {
-                        Text("❤️ PPG:")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                        Text("\(ppgSampleCount)개 샘플")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        Spacer()
-                    }
-                    
-                    HStack {
-                        Text("🏃 ACC:")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                        Text("\(accelerometerSampleCount)개 샘플")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        Spacer()
-                    }
-                } else {
-                    HStack {
-                        Text("🧠 EEG:")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Text("\(eegDurationSeconds)초마다")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        Spacer()
-                    }
-                    
-                    HStack {
-                        Text("❤️ PPG:")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                        Text("\(ppgDurationSeconds)초마다")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        Spacer()
-                    }
-                    
-                    HStack {
-                        Text("🏃 ACC:")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                        Text("\(accelerometerDurationSeconds)초마다")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        Spacer()
-                    }
-                }
-            }
-            
-            Text("선택된 센서: \(selectedSensors.map { $0.rawValue }.joined(separator: ", "))")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.green.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
-                )
-        )
     }
     
     private var simplifiedControlButtons: some View {
