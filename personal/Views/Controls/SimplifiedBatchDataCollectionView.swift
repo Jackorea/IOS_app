@@ -8,6 +8,7 @@ struct SimplifiedBatchDataCollectionView: View {
     @ObservedObject var bluetoothKit: BluetoothKit
     @StateObject private var viewModel: BatchDataConfigurationViewModel
     @FocusState private var isTextFieldFocused: Bool
+    @State private var showStopMonitoringAlert = false
     
     // 주로 사용하는 센서들
     private let mainSensors: [SensorType] = [.eeg, .ppg, .accelerometer]
@@ -26,7 +27,11 @@ struct SimplifiedBatchDataCollectionView: View {
             collectionModeSection
             
             // 수집 설정
-            configurationSection
+            if viewModel.selectedCollectionMode == .sampleCount {
+                sampleCountConfiguration
+            } else {
+                durationConfiguration
+            }
             
             // 센서 선택
             sensorSelectionSection
@@ -66,6 +71,18 @@ struct SimplifiedBatchDataCollectionView: View {
                 Text("모니터링 중에는 센서 설정을 변경할 수 없습니다.\n모니터링을 중지하고 설정을 변경하시겠습니까?")
             }
         }
+        .alert("모니터링 중지 확인", isPresented: $showStopMonitoringAlert) {
+            Button("기록 및 모니터링 중지", role: .destructive) {
+                // 기록 중지 후 모니터링 중지
+                if bluetoothKit.isRecording {
+                    bluetoothKit.stopRecording()
+                }
+                viewModel.stopMonitoring()
+            }
+            Button("취소", role: .cancel) { }
+        } message: {
+            Text("데이터 기록이 진행 중입니다.\n모니터링을 중지하면 기록도 함께 중지됩니다.")
+        }
     }
     
     // MARK: - View Components
@@ -97,15 +114,26 @@ struct SimplifiedBatchDataCollectionView: View {
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
             
-            Picker("수집 모드", selection: $viewModel.selectedCollectionMode) {
-                ForEach(BatchDataConfigurationViewModel.CollectionMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode)
+            Picker("수집 모드", selection: Binding(
+                get: { viewModel.selectedCollectionMode },
+                set: { newMode in
+                    if isEffectivelyMonitoring || bluetoothKit.isRecording {
+                        if bluetoothKit.isRecording {
+                            viewModel.handleTextFieldEditAttemptDuringRecording()
+                        } else {
+                            viewModel.showRecordingChangeWarning = true
+                        }
+                    } else {
+                        viewModel.updateCollectionMode(newMode)
+                    }
                 }
+            )) {
+                Text("샘플 수").tag(BatchDataConfigurationManager.CollectionMode.sampleCount)
+                Text("시간").tag(BatchDataConfigurationManager.CollectionMode.duration)
             }
-            .pickerStyle(SegmentedPickerStyle())
-            .onChange(of: viewModel.selectedCollectionMode) { newMode in
-                viewModel.updateCollectionMode(newMode)
-            }
+            .pickerStyle(.segmented)
+            .disabled(isEffectivelyMonitoring || bluetoothKit.isRecording)
+            .opacity(isEffectivelyMonitoring || bluetoothKit.isRecording ? 0.6 : 1.0)
         }
     }
     
@@ -312,7 +340,12 @@ struct SimplifiedBatchDataCollectionView: View {
             HStack(spacing: 12) {
                 if isEffectivelyMonitoring {
                     Button("모니터링 중지") {
-                        viewModel.stopMonitoring()
+                        // 데이터 기록 중이라면 경고 팝업 표시
+                        if bluetoothKit.isRecording {
+                            showStopMonitoringAlert = true
+                        } else {
+                            viewModel.stopMonitoring()
+                        }
                     }
                     .buttonStyle(.bordered)
                     .tint(.red)
