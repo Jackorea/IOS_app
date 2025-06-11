@@ -364,9 +364,9 @@ struct BatchDataCollectionView: View {
                     .frame(maxWidth: .infinity)
                 }
                 
-                Text("💡 센서 선택을 변경하면 기록이 중지됩니다")
+                Text("💡 센서 선택을 변경하면 자동으로 적용됩니다")
                     .font(.caption)
-                    .foregroundColor(.orange)
+                    .foregroundColor(.blue)
                     .multilineTextAlignment(.center)
             } else {
                 Button("설정 적용") {
@@ -400,45 +400,55 @@ struct BatchDataCollectionView: View {
         let selectedSensorTypes = Set(selectedSensors.map { $0.sdkType })
         batchDelegate?.updateSelectedSensors(selectedSensorTypes)
         
-        for sensor in selectedSensors {
-            if selectedCollectionMode == .sampleCount {
-                let sampleCount = getSampleCount(for: sensor)
-                bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensor.sdkType)
-                print("🔧 초기 설정: \(sensor.rawValue) - \(sampleCount)개 샘플마다 배치 수신")
-                
-                // 각 센서별 예상 시간 출력
-                switch sensor.sdkType {
-                case .eeg:
-                    let expectedTime = Double(sampleCount) / 250.0 // EEG는 250Hz
-                    print("   → EEG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
-                case .ppg:
-                    let expectedTime = Double(sampleCount) / 50.0 // PPG는 50Hz
-                    print("   → PPG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
-                case .accelerometer:
-                    let expectedTime = Double(sampleCount) / 30.0 // ACC는 30Hz
-                    print("   → ACC: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
-                case .battery:
-                    break // 배터리는 예상 시간 출력 안함
+        // 모든 센서 타입에 대해 선택 상태 확인
+        let allSensorTypes: [SensorTypeOption] = [.eeg, .ppg, .accelerometer]
+        
+        for sensorOption in allSensorTypes {
+            if selectedSensors.contains(sensorOption) {
+                // 선택된 센서: 데이터 수집 설정
+                if selectedCollectionMode == .sampleCount {
+                    let sampleCount = getSampleCount(for: sensorOption)
+                    bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensorOption.sdkType)
+                    print("🔧 초기 설정: \(sensorOption.rawValue) - \(sampleCount)개 샘플마다 배치 수신")
+                    
+                    // 각 센서별 예상 시간 출력
+                    switch sensorOption.sdkType {
+                    case .eeg:
+                        let expectedTime = Double(sampleCount) / 250.0 // EEG는 250Hz
+                        print("   → EEG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                    case .ppg:
+                        let expectedTime = Double(sampleCount) / 50.0 // PPG는 50Hz
+                        print("   → PPG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                    case .accelerometer:
+                        let expectedTime = Double(sampleCount) / 30.0 // ACC는 30Hz
+                        print("   → ACC: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                    case .battery:
+                        break // 배터리는 예상 시간 출력 안함
+                    }
+                } else {
+                    let duration = getDuration(for: sensorOption)
+                    bluetoothKit.setDataCollection(timeInterval: TimeInterval(duration), for: sensorOption.sdkType)
+                    print("🔧 초기 설정: \(sensorOption.rawValue) - \(duration)초마다 배치 수신")
+                    
+                    // 각 센서별 예상 샘플 수 출력
+                    switch sensorOption.sdkType {
+                    case .eeg:
+                        let expectedSamples = duration * 250 // EEG는 250Hz
+                        print("   → EEG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
+                    case .ppg:
+                        let expectedSamples = duration * 50 // PPG는 50Hz
+                        print("   → PPG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
+                    case .accelerometer:
+                        let expectedSamples = duration * 30 // ACC는 30Hz
+                        print("   → ACC: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
+                    case .battery:
+                        break // 배터리는 예상 샘플 수 출력 안함
+                    }
                 }
             } else {
-                let duration = getDuration(for: sensor)
-                bluetoothKit.setDataCollection(timeInterval: TimeInterval(duration), for: sensor.sdkType)
-                print("🔧 초기 설정: \(sensor.rawValue) - \(duration)초마다 배치 수신")
-                
-                // 각 센서별 예상 샘플 수 출력
-                switch sensor.sdkType {
-                case .eeg:
-                    let expectedSamples = duration * 250 // EEG는 250Hz
-                    print("   → EEG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
-                case .ppg:
-                    let expectedSamples = duration * 50 // PPG는 50Hz
-                    print("   → PPG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
-                case .accelerometer:
-                    let expectedSamples = duration * 30 // ACC는 30Hz
-                    print("   → ACC: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
-                case .battery:
-                    break // 배터리는 예상 샘플 수 출력 안함
-                }
+                // 선택되지 않은 센서: 데이터 수집 비활성화
+                bluetoothKit.disableDataCollection(for: sensorOption.sdkType)
+                print("🚫 초기 비활성화: \(sensorOption.rawValue) - 데이터 수집 제외")
             }
         }
         
@@ -450,51 +460,60 @@ struct BatchDataCollectionView: View {
         let selectedSensorTypes = Set(selectedSensors.map { $0.sdkType })
         batchDelegate?.updateSelectedSensors(selectedSensorTypes)
         
-        // 기록 중인 경우 현재 기록을 중지
+        // 기록 중인 경우 DataRecorder의 선택된 센서도 업데이트
         if bluetoothKit.isRecording {
-            print("🛑 센서 선택 변경으로 인한 기록 중지...")
-            bluetoothKit.stopRecording()
+            bluetoothKit.updateRecordingSensors()
         }
         
-        for sensor in selectedSensors {
-            if selectedCollectionMode == .sampleCount {
-                let sampleCount = getSampleCount(for: sensor)
-                bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensor.sdkType)
-                print("🔄 자동 변경: \(sensor.rawValue) - \(sampleCount)개 샘플마다 배치 수신")
-                
-                // 각 센서별 예상 시간 출력
-                switch sensor.sdkType {
-                case .eeg:
-                    let expectedTime = Double(sampleCount) / 250.0 // EEG는 250Hz
-                    print("   → EEG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
-                case .ppg:
-                    let expectedTime = Double(sampleCount) / 50.0 // PPG는 50Hz
-                    print("   → PPG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
-                case .accelerometer:
-                    let expectedTime = Double(sampleCount) / 30.0 // ACC는 30Hz
-                    print("   → ACC: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
-                case .battery:
-                    break // 배터리는 예상 시간 출력 안함
+        // 모든 센서 타입에 대해 선택 상태 확인
+        let allSensorTypes: [SensorTypeOption] = [.eeg, .ppg, .accelerometer]
+        
+        for sensorOption in allSensorTypes {
+            if selectedSensors.contains(sensorOption) {
+                // 선택된 센서: 데이터 수집 설정
+                if selectedCollectionMode == .sampleCount {
+                    let sampleCount = getSampleCount(for: sensorOption)
+                    bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensorOption.sdkType)
+                    print("🔄 자동 변경: \(sensorOption.rawValue) - \(sampleCount)개 샘플마다 배치 수신")
+                    
+                    // 각 센서별 예상 시간 출력
+                    switch sensorOption.sdkType {
+                    case .eeg:
+                        let expectedTime = Double(sampleCount) / 250.0 // EEG는 250Hz
+                        print("   → EEG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                    case .ppg:
+                        let expectedTime = Double(sampleCount) / 50.0 // PPG는 50Hz
+                        print("   → PPG: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                    case .accelerometer:
+                        let expectedTime = Double(sampleCount) / 30.0 // ACC는 30Hz
+                        print("   → ACC: \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
+                    case .battery:
+                        break // 배터리는 예상 시간 출력 안함
+                    }
+                } else {
+                    let duration = getDuration(for: sensorOption)
+                    bluetoothKit.setDataCollection(timeInterval: TimeInterval(duration), for: sensorOption.sdkType)
+                    print("🔄 자동 변경: \(sensorOption.rawValue) - \(duration)초마다 배치 수신")
+                    
+                    // 각 센서별 예상 샘플 수 출력
+                    switch sensorOption.sdkType {
+                    case .eeg:
+                        let expectedSamples = duration * 250 // EEG는 250Hz
+                        print("   → EEG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
+                    case .ppg:
+                        let expectedSamples = duration * 50 // PPG는 50Hz
+                        print("   → PPG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
+                    case .accelerometer:
+                        let expectedSamples = duration * 30 // ACC는 30Hz
+                        print("   → ACC: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
+                    case .battery:
+                        break // 배터리는 예상 샘플 수 출력 안함
+                    }
                 }
             } else {
-                let duration = getDuration(for: sensor)
-                bluetoothKit.setDataCollection(timeInterval: TimeInterval(duration), for: sensor.sdkType)
-                print("🔄 자동 변경: \(sensor.rawValue) - \(duration)초마다 배치 수신")
-                
-                // 각 센서별 예상 샘플 수 출력
-                switch sensor.sdkType {
-                case .eeg:
-                    let expectedSamples = duration * 250 // EEG는 250Hz
-                    print("   → EEG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
-                case .ppg:
-                    let expectedSamples = duration * 50 // PPG는 50Hz
-                    print("   → PPG: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
-                case .accelerometer:
-                    let expectedSamples = duration * 30 // ACC는 30Hz
-                    print("   → ACC: \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
-                case .battery:
-                    break // 배터리는 예상 샘플 수 출력 안함
-                }
+                // 선택되지 않은 센서: 데이터 수집 비활성화
+                bluetoothKit.disableDataCollection(for: sensorOption.sdkType)
+                print("🚫 자동 비활성화: \(sensorOption.rawValue) - 데이터 수집 중지")
             }
         }
     }
