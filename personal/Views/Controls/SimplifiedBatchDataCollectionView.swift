@@ -9,6 +9,9 @@ struct SimplifiedBatchDataCollectionView: View {
     @StateObject private var viewModel: BatchDataConfigurationViewModel
     @FocusState private var isTextFieldFocused: Bool
     
+    // 주로 사용하는 센서들
+    private let mainSensors: [SensorType] = [.eeg, .ppg, .accelerometer]
+    
     init(bluetoothKit: BluetoothKit) {
         self.bluetoothKit = bluetoothKit
         self._viewModel = StateObject(wrappedValue: BatchDataConfigurationViewModel(bluetoothKit: bluetoothKit))
@@ -99,7 +102,7 @@ struct SimplifiedBatchDataCollectionView: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
             
-            ForEach(BatchDataConfigurationViewModel.SensorTypeOption.allCases, id: \.self) { sensor in
+            ForEach(mainSensors, id: \.self) { sensor in
                 sensorSampleCountRow(for: sensor)
             }
         }
@@ -111,18 +114,18 @@ struct SimplifiedBatchDataCollectionView: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
             
-            ForEach(BatchDataConfigurationViewModel.SensorTypeOption.allCases, id: \.self) { sensor in
+            ForEach(mainSensors, id: \.self) { sensor in
                 sensorDurationRow(for: sensor)
             }
         }
     }
     
-    private func sensorSampleCountRow(for sensor: BatchDataConfigurationViewModel.SensorTypeOption) -> some View {
+    private func sensorSampleCountRow(for sensor: SensorType) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(sensorIcon(for: sensor) + " " + sensor.rawValue)
+            Text("\(sensor.emoji) \(sensor.displayName)")
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundColor(sensorColor(for: sensor))
+                .foregroundColor(colorForSensor(sensor))
             
             HStack {
                 TextField("예: \(defaultSampleCount(for: sensor))", text: sampleCountBinding(for: sensor))
@@ -140,12 +143,12 @@ struct SimplifiedBatchDataCollectionView: View {
         }
     }
     
-    private func sensorDurationRow(for sensor: BatchDataConfigurationViewModel.SensorTypeOption) -> some View {
+    private func sensorDurationRow(for sensor: SensorType) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(sensorIcon(for: sensor) + " " + sensor.rawValue)
+            Text("\(sensor.emoji) \(sensor.displayName)")
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundColor(sensorColor(for: sensor))
+                .foregroundColor(colorForSensor(sensor))
             
             HStack {
                 TextField("예: 1", text: durationBinding(for: sensor))
@@ -171,14 +174,14 @@ struct SimplifiedBatchDataCollectionView: View {
                 .foregroundColor(.secondary)
             
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
-                ForEach(BatchDataConfigurationViewModel.SensorTypeOption.allCases, id: \.self) { sensor in
+                ForEach(mainSensors, id: \.self) { sensor in
                     sensorToggleButton(for: sensor)
                 }
             }
         }
     }
     
-    private func sensorToggleButton(for sensor: BatchDataConfigurationViewModel.SensorTypeOption) -> some View {
+    private func sensorToggleButton(for sensor: SensorType) -> some View {
         Button(action: {
             var newSelection = viewModel.selectedSensors
             if newSelection.contains(sensor) {
@@ -192,7 +195,7 @@ struct SimplifiedBatchDataCollectionView: View {
                 Image(systemName: viewModel.selectedSensors.contains(sensor) ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(viewModel.selectedSensors.contains(sensor) ? .green : .gray)
                 
-                Text(sensor.rawValue)
+                Text(sensor.displayName)
                     .font(.subheadline)
                     .foregroundColor(.primary)
                 
@@ -203,10 +206,6 @@ struct SimplifiedBatchDataCollectionView: View {
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(viewModel.selectedSensors.contains(sensor) ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(viewModel.selectedSensors.contains(sensor) ? Color.green : Color.gray.opacity(0.3), lineWidth: 1)
-                    )
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -214,16 +213,37 @@ struct SimplifiedBatchDataCollectionView: View {
     
     private var controlButtonsSection: some View {
         VStack(spacing: 12) {
-            if viewModel.isConfigured {
-                HStack(spacing: 12) {
-                    Button("전체 해제") {
+            // 설정 컨트롤
+            HStack(spacing: 12) {
+                if viewModel.isConfigured {
+                    Button("설정 해제") {
                         viewModel.removeConfiguration()
                     }
                     .buttonStyle(.bordered)
-                    .tint(.orange)
-                    .frame(maxWidth: .infinity)
-                    
-                    Button(bluetoothKit.isRecording ? "수집 중지" : "수집 시작") {
+                    .tint(.red)
+                } else {
+                    Button("설정 적용") {
+                        viewModel.applyInitialConfiguration()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.selectedSensors.isEmpty)
+                }
+                
+                Spacer()
+                
+                if viewModel.showValidationError {
+                    Text(viewModel.validationMessage)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
+            }
+            
+            // 기록 컨트롤 (설정이 완료된 경우에만 표시)
+            if viewModel.isConfigured {
+                Divider()
+                
+                HStack(spacing: 12) {
+                    Button(bluetoothKit.isRecording ? "기록 중지" : "기록 시작") {
                         if bluetoothKit.isRecording {
                             bluetoothKit.stopRecording()
                         } else {
@@ -233,73 +253,76 @@ struct SimplifiedBatchDataCollectionView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(bluetoothKit.isRecording ? .red : .green)
                     .frame(maxWidth: .infinity)
+                    
+                    if bluetoothKit.isRecording {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: "record.circle.fill")
+                                    .foregroundColor(.red)
+                                    .symbolEffect(.pulse)
+                                Text("기록 중")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.red)
+                            }
+                            Text("선택된 센서 데이터 저장 중")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 
-                Text("💡 센서 선택을 변경하면 자동으로 적용됩니다")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .multilineTextAlignment(.center)
-            } else {
-                Button("설정 적용") {
-                    viewModel.applyInitialConfiguration()
+                if !bluetoothKit.isRecording && viewModel.isConfigured {
+                    Text("💡 센서 설정 완료. 기록 시작 버튼을 눌러 데이터를 저장하세요.")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
-                .frame(maxWidth: .infinity)
-                .disabled(viewModel.selectedSensors.isEmpty || !bluetoothKit.isConnected)
-                
-                Text("센서를 선택하고 설정 적용을 눌러주세요")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
             }
         }
     }
     
     // MARK: - Helper Methods
     
-    private func sensorIcon(for sensor: BatchDataConfigurationViewModel.SensorTypeOption) -> String {
-        switch sensor {
-        case .eeg: return "🧠"
-        case .ppg: return "❤️"
-        case .accelerometer: return "🏃"
+    private func colorForSensor(_ sensor: SensorType) -> Color {
+        switch sensor.color {
+        case "blue": return .blue
+        case "red": return .red
+        case "green": return .green
+        case "orange": return .orange
+        default: return .primary
         }
     }
     
-    private func sensorColor(for sensor: BatchDataConfigurationViewModel.SensorTypeOption) -> Color {
-        switch sensor {
-        case .eeg: return .blue
-        case .ppg: return .red
-        case .accelerometer: return .green
-        }
-    }
-    
-    private func defaultSampleCount(for sensor: BatchDataConfigurationViewModel.SensorTypeOption) -> Int {
+    private func defaultSampleCount(for sensor: SensorType) -> Int {
         switch sensor {
         case .eeg: return 250
         case .ppg: return 50
         case .accelerometer: return 30
+        case .battery: return 1
         }
     }
     
-    private func sampleCountBinding(for sensor: BatchDataConfigurationViewModel.SensorTypeOption) -> Binding<String> {
+    private func sampleCountBinding(for sensor: SensorType) -> Binding<String> {
         switch sensor {
         case .eeg: return $viewModel.eegSampleCountText
         case .ppg: return $viewModel.ppgSampleCountText
         case .accelerometer: return $viewModel.accelerometerSampleCountText
+        case .battery: return .constant("1") // 배터리는 특별 처리
         }
     }
     
-    private func durationBinding(for sensor: BatchDataConfigurationViewModel.SensorTypeOption) -> Binding<String> {
+    private func durationBinding(for sensor: SensorType) -> Binding<String> {
         switch sensor {
         case .eeg: return $viewModel.eegDurationText
         case .ppg: return $viewModel.ppgDurationText
         case .accelerometer: return $viewModel.accelerometerDurationText
+        case .battery: return .constant("1") // 배터리는 특별 처리
         }
     }
 }
 
 #Preview {
     SimplifiedBatchDataCollectionView(bluetoothKit: BluetoothKit())
-        .padding()
 } 

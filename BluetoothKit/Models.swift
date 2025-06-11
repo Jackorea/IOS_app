@@ -728,6 +728,46 @@ public enum SensorType: String, CaseIterable, Sendable {
         case .battery: return 1.0 / 60.0  // 1분마다
         }
     }
+    
+    /// UI에서 표시하기 위한 짧은 이름을 반환합니다.
+    public var displayName: String {
+        switch self {
+        case .eeg: return "EEG"
+        case .ppg: return "PPG"
+        case .accelerometer: return "ACC"
+        case .battery: return "배터리"
+        }
+    }
+    
+    /// UI에서 표시하기 위한 이모지를 반환합니다.
+    public var emoji: String {
+        switch self {
+        case .eeg: return "🧠"
+        case .ppg: return "❤️"
+        case .accelerometer: return "🏃"
+        case .battery: return "🔋"
+        }
+    }
+    
+    /// UI에서 표시하기 위한 색상을 반환합니다.
+    public var color: String {
+        switch self {
+        case .eeg: return "blue"
+        case .ppg: return "red"
+        case .accelerometer: return "green"
+        case .battery: return "orange"
+        }
+    }
+    
+    /// 주어진 샘플 수에 대한 예상 시간을 계산합니다.
+    public func expectedTime(for sampleCount: Int) -> Double {
+        return Double(sampleCount) / sampleRate
+    }
+    
+    /// 주어진 시간에 대한 예상 샘플 수를 계산합니다.
+    public func expectedSamples(for duration: TimeInterval) -> Int {
+        return Int(duration * sampleRate)
+    }
 }
 
 /// 배치 단위로 센서 데이터를 수신하는 델리게이트 프로토콜입니다.
