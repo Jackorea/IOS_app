@@ -44,7 +44,7 @@ struct EEGDataCard: View {
                     Text("센서 접촉 상태")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text(reading.leadOff ? "접촉 안됨" : "연결됨")
+                    Text(reading.leadOff ? "접촉 안됨" : "접촉됨")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(reading.leadOff ? .red : .green)
