@@ -15,6 +15,7 @@ class BatchDataConfigurationViewModel: ObservableObject {
     // 경고 팝업 관련 상태 (UI에서 바인딩 가능하도록 @Published로 설정)
     @Published var showRecordingChangeWarning: Bool = false
     @Published var pendingSensorSelection: Set<SensorType>? = nil
+    @Published var pendingConfigurationChange: BatchDataConfigurationManager.PendingConfigurationChange? = nil
     
     // MARK: - Business Logic Manager
     
@@ -85,6 +86,7 @@ class BatchDataConfigurationViewModel: ObservableObject {
         // ViewModel 상태도 즉시 업데이트
         showRecordingChangeWarning = false
         pendingSensorSelection = nil
+        pendingConfigurationChange = nil
     }
     
     /// 사용자가 경고 팝업에서 "취소"를 선택했을 때 호출
@@ -93,6 +95,16 @@ class BatchDataConfigurationViewModel: ObservableObject {
         // ViewModel 상태도 즉시 업데이트
         showRecordingChangeWarning = false
         pendingSensorSelection = nil
+        pendingConfigurationChange = nil
+    }
+    
+    /// 기록 중 텍스트 필드 편집 시도 시 호출
+    func handleTextFieldEditAttemptDuringRecording() {
+        if configurationManager.isMonitoringActive {
+            // 일반적인 설정 변경 경고 표시
+            pendingConfigurationChange = nil // 구체적인 변경사항은 없음
+            showRecordingChangeWarning = true
+        }
     }
     
     // MARK: - Sensor Configuration Access (Manager에 위임)
@@ -260,6 +272,12 @@ class BatchDataConfigurationViewModel: ObservableObject {
         configurationManager.$pendingSensorSelection
             .sink { [weak self] newValue in
                 self?.pendingSensorSelection = newValue
+            }
+            .store(in: &cancellables)
+        
+        configurationManager.$pendingConfigurationChange
+            .sink { [weak self] newValue in
+                self?.pendingConfigurationChange = newValue
             }
             .store(in: &cancellables)
     }

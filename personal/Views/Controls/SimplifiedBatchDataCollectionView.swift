@@ -43,15 +43,28 @@ struct SimplifiedBatchDataCollectionView: View {
         .onTapGesture {
             isTextFieldFocused = false
         }
-        .alert("기록 중 센서 변경", isPresented: $viewModel.showRecordingChangeWarning) {
-            Button("기록 중지 후 변경", role: .destructive) {
-                viewModel.confirmSensorChangeWithRecordingStop()
-            }
-            Button("취소", role: .cancel) {
-                viewModel.cancelSensorChange()
+        .alert("설정 변경 제한", isPresented: $viewModel.showRecordingChangeWarning) {
+            if bluetoothKit.isRecording {
+                Button("기록 중지 후 변경", role: .destructive) {
+                    viewModel.confirmSensorChangeWithRecordingStop()
+                }
+                Button("취소", role: .cancel) {
+                    viewModel.cancelSensorChange()
+                }
+            } else {
+                Button("모니터링 중지 후 변경", role: .destructive) {
+                    viewModel.stopMonitoring()
+                }
+                Button("취소", role: .cancel) {
+                    viewModel.cancelSensorChange()
+                }
             }
         } message: {
-            Text("기록 중에는 센서 설정을 변경할 수 없습니다.\n기록을 중지하고 센서를 변경하시겠습니까?")
+            if bluetoothKit.isRecording {
+                Text("기록 중에는 센서 설정을 변경할 수 없습니다.\n기록을 중지하고 설정을 변경하시겠습니까?")
+            } else {
+                Text("모니터링 중에는 센서 설정을 변경할 수 없습니다.\n모니터링을 중지하고 설정을 변경하시겠습니까?")
+            }
         }
     }
     
@@ -108,9 +121,25 @@ struct SimplifiedBatchDataCollectionView: View {
     
     private var sampleCountConfiguration: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("센서별 목표 샘플 수")
-                .font(.subheadline)
-                .fontWeight(.medium)
+            HStack {
+                Text("센서별 목표 샘플 수")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Spacer()
+                
+                if isEffectivelyMonitoring || bluetoothKit.isRecording {
+                    HStack(spacing: 4) {
+                        Image(systemName: bluetoothKit.isRecording ? "record.circle.fill" : "eye.fill")
+                            .foregroundColor(bluetoothKit.isRecording ? .red : .orange)
+                            .font(.caption)
+                        Text(bluetoothKit.isRecording ? "기록 중" : "모니터링 중")
+                            .font(.caption)
+                            .foregroundColor(bluetoothKit.isRecording ? .red : .orange)
+                            .fontWeight(.medium)
+                    }
+                }
+            }
             
             ForEach(mainSensors, id: \.self) { sensor in
                 sensorSampleCountRow(for: sensor)
@@ -120,9 +149,25 @@ struct SimplifiedBatchDataCollectionView: View {
     
     private var durationConfiguration: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("센서별 수집 시간")
-                .font(.subheadline)
-                .fontWeight(.medium)
+            HStack {
+                Text("센서별 수집 시간")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Spacer()
+                
+                if isEffectivelyMonitoring || bluetoothKit.isRecording {
+                    HStack(spacing: 4) {
+                        Image(systemName: bluetoothKit.isRecording ? "record.circle.fill" : "eye.fill")
+                            .foregroundColor(bluetoothKit.isRecording ? .red : .orange)
+                            .font(.caption)
+                        Text(bluetoothKit.isRecording ? "기록 중" : "모니터링 중")
+                            .font(.caption)
+                            .foregroundColor(bluetoothKit.isRecording ? .red : .orange)
+                            .fontWeight(.medium)
+                    }
+                }
+            }
             
             ForEach(mainSensors, id: \.self) { sensor in
                 sensorDurationRow(for: sensor)
@@ -142,6 +187,18 @@ struct SimplifiedBatchDataCollectionView: View {
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
                     .focused($isTextFieldFocused)
+                    .disabled(isEffectivelyMonitoring || bluetoothKit.isRecording)
+                    .opacity(isEffectivelyMonitoring || bluetoothKit.isRecording ? 0.6 : 1.0)
+                    .onTapGesture {
+                        if isEffectivelyMonitoring || bluetoothKit.isRecording {
+                            if bluetoothKit.isRecording {
+                                viewModel.handleTextFieldEditAttemptDuringRecording()
+                            } else {
+                                viewModel.showRecordingChangeWarning = true
+                            }
+                            isTextFieldFocused = false
+                        }
+                    }
                     .onChange(of: sampleCountBinding(for: sensor).wrappedValue) { newValue in
                         _ = viewModel.validateSampleCount(newValue, for: sensor)
                     }
@@ -165,6 +222,18 @@ struct SimplifiedBatchDataCollectionView: View {
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
                     .focused($isTextFieldFocused)
+                    .disabled(isEffectivelyMonitoring || bluetoothKit.isRecording)
+                    .opacity(isEffectivelyMonitoring || bluetoothKit.isRecording ? 0.6 : 1.0)
+                    .onTapGesture {
+                        if isEffectivelyMonitoring || bluetoothKit.isRecording {
+                            if bluetoothKit.isRecording {
+                                viewModel.handleTextFieldEditAttemptDuringRecording()
+                            } else {
+                                viewModel.showRecordingChangeWarning = true
+                            }
+                            isTextFieldFocused = false
+                        }
+                    }
                     .onChange(of: durationBinding(for: sensor).wrappedValue) { newValue in
                         _ = viewModel.validateDuration(newValue, for: sensor)
                     }
@@ -186,7 +255,7 @@ struct SimplifiedBatchDataCollectionView: View {
                 
                 Spacer()
                 
-                if viewModel.isMonitoringActive {
+                if isEffectivelyMonitoring {
                     HStack(spacing: 4) {
                         Image(systemName: "dot.radiowaves.left.and.right")
                             .foregroundColor(.green)
@@ -241,7 +310,7 @@ struct SimplifiedBatchDataCollectionView: View {
         VStack(spacing: 12) {
             // 모니터링 컨트롤
             HStack(spacing: 12) {
-                if viewModel.isMonitoringActive {
+                if isEffectivelyMonitoring {
                     Button("모니터링 중지") {
                         viewModel.stopMonitoring()
                     }
@@ -264,8 +333,8 @@ struct SimplifiedBatchDataCollectionView: View {
                 }
             }
             
-            // 기록 컨트롤 (모니터링이 활성화된 경우에만 표시)
-            if viewModel.isMonitoringActive {
+            // 기록 컨트롤 (실질적인 모니터링이 활성화된 경우에만 표시)
+            if isEffectivelyMonitoring {
                 Divider()
                 
                 HStack(spacing: 12) {
@@ -298,7 +367,7 @@ struct SimplifiedBatchDataCollectionView: View {
                     }
                 }
                 
-                if !bluetoothKit.isRecording && viewModel.isMonitoringActive {
+                if !bluetoothKit.isRecording && isEffectivelyMonitoring {
                     Text("💡 센서 모니터링 중. 기록 시작 버튼을 눌러 데이터를 저장하세요.")
                         .font(.caption)
                         .foregroundColor(.blue)
@@ -348,6 +417,11 @@ struct SimplifiedBatchDataCollectionView: View {
                 self.viewModel.setDurationText(newValue, for: sensor)
             }
         )
+    }
+    
+    // 실질적인 모니터링 상태 (모니터링 활성화 + 선택된 센서 존재)
+    private var isEffectivelyMonitoring: Bool {
+        return viewModel.isMonitoringActive && !viewModel.selectedSensors.isEmpty
     }
 }
 
