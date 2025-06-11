@@ -36,8 +36,6 @@ struct ContentView: View {
                     if bluetoothKit.isConnected {
                         SensorDataView(bluetoothKit: bluetoothKit)
                             .frame(maxWidth: .infinity)
-                        RecordingControlsView(bluetoothKit: bluetoothKit)
-                            .frame(maxWidth: .infinity)
                     }
                     
                     // 배치 데이터 수집 설정 (연결된 경우에만)
