@@ -379,7 +379,9 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     /// bluetoothKit.startRecording()
     /// ```
     public func startRecording() {
-        dataRecorder.startRecording()
+        // 현재 설정된 센서 타입들만 기록하도록 전달
+        let selectedSensors = Set(dataCollectionConfigs.keys)
+        dataRecorder.startRecording(with: selectedSensors)
     }
     
     /// 센서 데이터 기록을 중지합니다.
@@ -539,6 +541,22 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     public func disableAllDataCollection() {
         dataCollectionConfigs.removeAll()
         clearAllBuffers()
+    }
+    
+    /// 기록 중에 선택된 센서를 업데이트합니다.
+    ///
+    /// 이미 기록이 시작된 상태에서 센서 선택을 변경할 때 사용됩니다.
+    /// 새로 선택된 센서의 데이터만 파일에 기록됩니다.
+    ///
+    /// ## 예시
+    ///
+    /// ```swift
+    /// // 기록 중에 EEG만 선택하도록 변경
+    /// bluetoothKit.updateRecordingSensors([.eeg])
+    /// ```
+    public func updateRecordingSensors() {
+        let selectedSensors = Set(dataCollectionConfigs.keys)
+        dataRecorder.updateSelectedSensors(selectedSensors)
     }
     
     // MARK: - Private Setup

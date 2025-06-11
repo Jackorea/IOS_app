@@ -364,9 +364,9 @@ struct BatchDataCollectionView: View {
                     .frame(maxWidth: .infinity)
                 }
                 
-                Text("💡 센서 선택을 변경하면 자동으로 적용됩니다")
+                Text("💡 센서 선택을 변경하면 기록이 중지됩니다")
                     .font(.caption)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.orange)
                     .multilineTextAlignment(.center)
             } else {
                 Button("설정 적용") {
@@ -449,6 +449,12 @@ struct BatchDataCollectionView: View {
         // 선택된 센서를 로거에 업데이트
         let selectedSensorTypes = Set(selectedSensors.map { $0.sdkType })
         batchDelegate?.updateSelectedSensors(selectedSensorTypes)
+        
+        // 기록 중인 경우 현재 기록을 중지
+        if bluetoothKit.isRecording {
+            print("🛑 센서 선택 변경으로 인한 기록 중지...")
+            bluetoothKit.stopRecording()
+        }
         
         for sensor in selectedSensors {
             if selectedCollectionMode == .sampleCount {
