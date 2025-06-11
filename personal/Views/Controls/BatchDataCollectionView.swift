@@ -352,7 +352,7 @@ struct BatchDataCollectionView: View {
                     .tint(.orange)
                     .frame(maxWidth: .infinity)
                     
-                    Button(bluetoothKit.isRecording ? "기록 중지" : "기록 시작") {
+                    Button(bluetoothKit.isRecording ? "수집 중지" : "수집 시작") {
                         if bluetoothKit.isRecording {
                             bluetoothKit.stopRecording()
                     } else {
