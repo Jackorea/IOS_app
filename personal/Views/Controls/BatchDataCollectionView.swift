@@ -494,6 +494,10 @@ struct BatchDataCollectionView: View {
             bluetoothKit.batchDataDelegate = batchDelegate
         }
         
+        // 선택된 센서를 로거에 업데이트
+        let selectedSensorTypes = Set(selectedSensors.map { $0.sdkType })
+        batchDelegate?.updateSelectedSensors(selectedSensorTypes)
+        
         for sensor in selectedSensors {
             if selectedCollectionMode == .sampleCount {
                 let sampleCount = getSampleCount(for: sensor)
@@ -540,6 +544,10 @@ struct BatchDataCollectionView: View {
     }
     
     private func applyConfigurationChanges() {
+        // 선택된 센서를 로거에 업데이트
+        let selectedSensorTypes = Set(selectedSensors.map { $0.sdkType })
+        batchDelegate?.updateSelectedSensors(selectedSensorTypes)
+        
         for sensor in selectedSensors {
             if selectedCollectionMode == .sampleCount {
                 let sampleCount = getSampleCount(for: sensor)
@@ -603,6 +611,10 @@ struct BatchDataCollectionView: View {
     
     private func removeConfiguration() {
         bluetoothKit.disableAllDataCollection()
+        
+        // 로거의 선택된 센서를 빈 세트로 업데이트하여 콘솔 출력 중지
+        batchDelegate?.updateSelectedSensors(Set<SensorType>())
+        
         // batchDelegate를 nil로 설정하여 콘솔 출력 중지
         bluetoothKit.batchDataDelegate = nil
         batchDelegate = nil
@@ -686,8 +698,27 @@ struct BatchDataCollectionView: View {
 class BatchDataConsoleLogger: SensorBatchDataDelegate {
     private var batchCount: [String: Int] = [:]
     private let startTime = Date()
+    private var selectedSensors: Set<SensorType> = []
+    
+    // 선택된 센서를 업데이트하는 메서드
+    func updateSelectedSensors(_ sensors: Set<SensorType>) {
+        selectedSensors = sensors
+        print("📝 콘솔 출력 설정 업데이트: \(sensors.map { sensorTypeToString($0) }.joined(separator: ", "))")
+    }
+    
+    private func sensorTypeToString(_ sensorType: SensorType) -> String {
+        switch sensorType {
+        case .eeg: return "EEG"
+        case .ppg: return "PPG"
+        case .accelerometer: return "ACC"
+        case .battery: return "배터리"
+        }
+    }
     
     func didReceiveEEGBatch(_ readings: [EEGReading]) {
+        // EEG가 선택된 센서에 포함되어 있을 때만 출력
+        guard selectedSensors.contains(.eeg) else { return }
+        
         let count = (batchCount["EEG"] ?? 0) + 1
         batchCount["EEG"] = count
         let elapsed = Date().timeIntervalSince(startTime)
@@ -702,6 +733,9 @@ class BatchDataConsoleLogger: SensorBatchDataDelegate {
     }
     
     func didReceivePPGBatch(_ readings: [PPGReading]) {
+        // PPG가 선택된 센서에 포함되어 있을 때만 출력
+        guard selectedSensors.contains(.ppg) else { return }
+        
         let count = (batchCount["PPG"] ?? 0) + 1
         batchCount["PPG"] = count
         let elapsed = Date().timeIntervalSince(startTime)
@@ -716,6 +750,9 @@ class BatchDataConsoleLogger: SensorBatchDataDelegate {
     }
     
     func didReceiveAccelerometerBatch(_ readings: [AccelerometerReading]) {
+        // 가속도계가 선택된 센서에 포함되어 있을 때만 출력
+        guard selectedSensors.contains(.accelerometer) else { return }
+        
         let count = (batchCount["ACCEL"] ?? 0) + 1
         batchCount["ACCEL"] = count
         let elapsed = Date().timeIntervalSince(startTime)
@@ -730,6 +767,9 @@ class BatchDataConsoleLogger: SensorBatchDataDelegate {
     }
     
     func didReceiveBatteryUpdate(_ reading: BatteryReading) {
+        // 배터리가 선택된 센서에 포함되어 있을 때만 출력 (배터리는 보통 항상 포함되지만 확인)
+        guard selectedSensors.contains(.battery) else { return }
+        
         let elapsed = Date().timeIntervalSince(startTime)
         print("🔋 배터리 업데이트 - \(reading.level)% (경과: \(String(format: "%.1f", elapsed))초)")
         print("") // 다른 로그와 구분을 위한 빈 줄
