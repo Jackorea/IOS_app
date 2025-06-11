@@ -178,10 +178,26 @@ struct SimplifiedBatchDataCollectionView: View {
     
     private var sensorSelectionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("수집할 센서")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.secondary)
+            HStack {
+                Text("수집할 센서")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                if viewModel.isMonitoringActive {
+                    HStack(spacing: 4) {
+                        Image(systemName: "dot.radiowaves.left.and.right")
+                            .foregroundColor(.green)
+                            .symbolEffect(.pulse)
+                        Text("실시간 반영")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                            .fontWeight(.medium)
+                    }
+                }
+            }
             
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
                 ForEach(mainSensors, id: \.self) { sensor in
@@ -223,17 +239,17 @@ struct SimplifiedBatchDataCollectionView: View {
     
     private var controlButtonsSection: some View {
         VStack(spacing: 12) {
-            // 설정 컨트롤
+            // 모니터링 컨트롤
             HStack(spacing: 12) {
-                if viewModel.isConfigured {
-                    Button("설정 해제") {
-                        viewModel.removeConfiguration()
+                if viewModel.isMonitoringActive {
+                    Button("모니터링 중지") {
+                        viewModel.stopMonitoring()
                     }
                     .buttonStyle(.bordered)
                     .tint(.red)
                 } else {
-                    Button("설정 적용") {
-                        viewModel.applyInitialConfiguration()
+                    Button("모니터링 시작") {
+                        viewModel.startMonitoring()
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(viewModel.selectedSensors.isEmpty)
@@ -248,8 +264,8 @@ struct SimplifiedBatchDataCollectionView: View {
                 }
             }
             
-            // 기록 컨트롤 (설정이 완료된 경우에만 표시)
-            if viewModel.isConfigured {
+            // 기록 컨트롤 (모니터링이 활성화된 경우에만 표시)
+            if viewModel.isMonitoringActive {
                 Divider()
                 
                 HStack(spacing: 12) {
@@ -282,8 +298,8 @@ struct SimplifiedBatchDataCollectionView: View {
                     }
                 }
                 
-                if !bluetoothKit.isRecording && viewModel.isConfigured {
-                    Text("💡 센서 설정 완료. 기록 시작 버튼을 눌러 데이터를 저장하세요.")
+                if !bluetoothKit.isRecording && viewModel.isMonitoringActive {
+                    Text("💡 센서 모니터링 중. 기록 시작 버튼을 눌러 데이터를 저장하세요.")
                         .font(.caption)
                         .foregroundColor(.blue)
                         .multilineTextAlignment(.center)

@@ -34,7 +34,12 @@ class BatchDataConfigurationViewModel: ObservableObject {
     }
     
     var isConfigured: Bool {
-        configurationManager.isConfigured
+        configurationManager.isMonitoringActive
+    }
+    
+    // 모니터링 상태 추가 (이전 버전과의 호환성)
+    var isMonitoringActive: Bool {
+        configurationManager.isMonitoringActive
     }
     
     // MARK: - Initialization
@@ -47,11 +52,21 @@ class BatchDataConfigurationViewModel: ObservableObject {
     // MARK: - Configuration Methods (Manager에 위임)
     
     func applyInitialConfiguration() {
-        configurationManager.applyInitialConfiguration()
+        configurationManager.startMonitoring()
     }
     
     func removeConfiguration() {
-        configurationManager.removeConfiguration()
+        configurationManager.stopMonitoring()
+    }
+    
+    // MARK: - Monitoring Methods (새로운 명명법)
+    
+    func startMonitoring() {
+        configurationManager.startMonitoring()
+    }
+    
+    func stopMonitoring() {
+        configurationManager.stopMonitoring()
     }
     
     func updateSensorSelection(_ sensors: Set<SensorType>) {
@@ -229,7 +244,7 @@ class BatchDataConfigurationViewModel: ObservableObject {
             }
             .store(in: &cancellables)
         
-        configurationManager.$isConfigured
+        configurationManager.$isMonitoringActive
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
             }
