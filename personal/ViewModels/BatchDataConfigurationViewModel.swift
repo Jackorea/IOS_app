@@ -1,292 +1,263 @@
 import SwiftUI
 import BluetoothKit
+import Combine
 
-/// 배치 데이터 수집 설정을 관리하는 ViewModel
+/// 배치 데이터 수집 설정을 관리하는 ViewModel (UI 레이어)
+/// 비즈니스 로직은 BatchDataConfigurationManager에 위임하고, UI 관련 기능만 담당
 @MainActor
 class BatchDataConfigurationViewModel: ObservableObject {
     
-    // MARK: - Types
+    // MARK: - UI State Properties
     
-    enum CollectionMode: String, CaseIterable {
-        case sampleCount = "샘플 수"
-        case duration = "시간 (초)"
-    }
-    
-    // MARK: - Configuration Data
-    
-    private struct SensorConfiguration {
-        var sampleCount: Int
-        var duration: Int
-        var sampleCountText: String
-        var durationText: String
-        
-        init(sampleCount: Int, duration: Int) {
-            self.sampleCount = sampleCount
-            self.duration = duration
-            self.sampleCountText = "\(sampleCount)"
-            self.durationText = "\(duration)"
-        }
-    }
-    
-    // MARK: - Published Properties
-    
-    @Published var selectedCollectionMode: CollectionMode = .sampleCount
-    @Published var selectedSensors: Set<SensorType> = [.eeg, .ppg, .accelerometer]
-    @Published var isConfigured = false
     @Published var showValidationError: Bool = false
     @Published var validationMessage: String = ""
     
-    // 센서별 설정을 Dictionary로 관리하여 코드 중복 제거
-    @Published private var sensorConfigurations: [SensorType: SensorConfiguration] = [
-        .eeg: SensorConfiguration(sampleCount: 250, duration: 1),
-        .ppg: SensorConfiguration(sampleCount: 50, duration: 1),
-        .accelerometer: SensorConfiguration(sampleCount: 30, duration: 1)
-    ]
+    // 경고 팝업 관련 상태 (UI에서 바인딩 가능하도록 @Published로 설정)
+    @Published var showRecordingChangeWarning: Bool = false
+    @Published var pendingSensorSelection: Set<SensorType>? = nil
     
-    // MARK: - Computed Properties for UI Binding
+    // MARK: - Business Logic Manager
     
-    var eegSampleCount: Int {
-        get { sensorConfigurations[.eeg]?.sampleCount ?? 250 }
-        set { 
-            sensorConfigurations[.eeg]?.sampleCount = newValue
-            if isConfigured { applyChanges() }
-        }
+    private let configurationManager: BatchDataConfigurationManager
+    private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Delegation Properties (Manager의 Published 속성들을 노출)
+    
+    var selectedCollectionMode: BatchDataConfigurationManager.CollectionMode {
+        get { configurationManager.selectedCollectionMode }
+        set { configurationManager.selectedCollectionMode = newValue }
     }
     
-    var ppgSampleCount: Int {
-        get { sensorConfigurations[.ppg]?.sampleCount ?? 50 }
-        set { 
-            sensorConfigurations[.ppg]?.sampleCount = newValue
-            if isConfigured { applyChanges() }
-        }
+    var selectedSensors: Set<SensorType> {
+        get { configurationManager.selectedSensors }
+        set { configurationManager.selectedSensors = newValue }
     }
     
-    var accelerometerSampleCount: Int {
-        get { sensorConfigurations[.accelerometer]?.sampleCount ?? 30 }
-        set { 
-            sensorConfigurations[.accelerometer]?.sampleCount = newValue
-            if isConfigured { applyChanges() }
-        }
+    var isConfigured: Bool {
+        configurationManager.isConfigured
     }
-    
-    var eegDurationSeconds: Int {
-        get { sensorConfigurations[.eeg]?.duration ?? 1 }
-        set { 
-            sensorConfigurations[.eeg]?.duration = newValue
-            if isConfigured { applyChanges() }
-        }
-    }
-    
-    var ppgDurationSeconds: Int {
-        get { sensorConfigurations[.ppg]?.duration ?? 1 }
-        set { 
-            sensorConfigurations[.ppg]?.duration = newValue
-            if isConfigured { applyChanges() }
-        }
-    }
-    
-    var accelerometerDurationSeconds: Int {
-        get { sensorConfigurations[.accelerometer]?.duration ?? 1 }
-        set { 
-            sensorConfigurations[.accelerometer]?.duration = newValue
-            if isConfigured { applyChanges() }
-        }
-    }
-    
-    // Text field bindings
-    var eegSampleCountText: String {
-        get { sensorConfigurations[.eeg]?.sampleCountText ?? "250" }
-        set { sensorConfigurations[.eeg]?.sampleCountText = newValue }
-    }
-    
-    var ppgSampleCountText: String {
-        get { sensorConfigurations[.ppg]?.sampleCountText ?? "50" }
-        set { sensorConfigurations[.ppg]?.sampleCountText = newValue }
-    }
-    
-    var accelerometerSampleCountText: String {
-        get { sensorConfigurations[.accelerometer]?.sampleCountText ?? "30" }
-        set { sensorConfigurations[.accelerometer]?.sampleCountText = newValue }
-    }
-    
-    var eegDurationText: String {
-        get { sensorConfigurations[.eeg]?.durationText ?? "1" }
-        set { sensorConfigurations[.eeg]?.durationText = newValue }
-    }
-    
-    var ppgDurationText: String {
-        get { sensorConfigurations[.ppg]?.durationText ?? "1" }
-        set { sensorConfigurations[.ppg]?.durationText = newValue }
-    }
-    
-    var accelerometerDurationText: String {
-        get { sensorConfigurations[.accelerometer]?.durationText ?? "1" }
-        set { sensorConfigurations[.accelerometer]?.durationText = newValue }
-    }
-    
-    // SDK 참조
-    private let bluetoothKit: BluetoothKit
-    private var batchDelegate: BatchDataConsoleLogger?
     
     // MARK: - Initialization
     
     init(bluetoothKit: BluetoothKit) {
-        self.bluetoothKit = bluetoothKit
+        self.configurationManager = BatchDataConfigurationManager(bluetoothKit: bluetoothKit)
+        setupBindings()
     }
     
-    // MARK: - Public Methods
+    // MARK: - Configuration Methods (Manager에 위임)
     
     func applyInitialConfiguration() {
-        guard !selectedSensors.isEmpty else { return }
-        
-        setupBatchDelegate()
-        configureAllSensors()
-        isConfigured = true
+        configurationManager.applyInitialConfiguration()
     }
     
     func removeConfiguration() {
-        bluetoothKit.disableAllDataCollection()
-        batchDelegate?.updateSelectedSensors(Set<SensorType>())
-        bluetoothKit.batchDataDelegate = nil
-        batchDelegate = nil
-        isConfigured = false
-        print("❌ 배치 데이터 수집 설정 해제")
+        configurationManager.removeConfiguration()
     }
     
     func updateSensorSelection(_ sensors: Set<SensorType>) {
-        selectedSensors = sensors
-        if isConfigured {
-            applyChanges()
-        }
+        configurationManager.updateSensorSelection(sensors)
     }
     
-    func updateCollectionMode(_ mode: CollectionMode) {
-        selectedCollectionMode = mode
-        if isConfigured {
-            applyChanges()
-        }
+    func updateCollectionMode(_ mode: BatchDataConfigurationManager.CollectionMode) {
+        configurationManager.updateCollectionMode(mode)
     }
     
-    // MARK: - Validation Methods
+    // MARK: - Warning Popup Methods
     
-    func validateSampleCount(_ text: String, for sensor: SensorType) -> Bool {
-        return validateAndUpdateValue(text, for: sensor, type: .sampleCount, range: 1...100000)
+    /// 사용자가 경고 팝업에서 "기록 중지 후 변경"을 선택했을 때 호출
+    func confirmSensorChangeWithRecordingStop() {
+        configurationManager.confirmSensorChangeWithRecordingStop()
+        // ViewModel 상태도 즉시 업데이트
+        showRecordingChangeWarning = false
+        pendingSensorSelection = nil
     }
     
-    func validateDuration(_ text: String, for sensor: SensorType) -> Bool {
-        return validateAndUpdateValue(text, for: sensor, type: .duration, range: 1...3600)
+    /// 사용자가 경고 팝업에서 "취소"를 선택했을 때 호출
+    func cancelSensorChange() {
+        configurationManager.cancelSensorChange()
+        // ViewModel 상태도 즉시 업데이트
+        showRecordingChangeWarning = false
+        pendingSensorSelection = nil
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Sensor Configuration Access (Manager에 위임)
     
     func getSampleCount(for sensor: SensorType) -> Int {
-        return sensorConfigurations[sensor]?.sampleCount ?? 0
+        return configurationManager.getSampleCount(for: sensor)
     }
     
     func getDuration(for sensor: SensorType) -> Int {
-        return sensorConfigurations[sensor]?.duration ?? 0
+        return configurationManager.getDuration(for: sensor)
     }
     
+    func getSampleCountText(for sensor: SensorType) -> String {
+        return configurationManager.getSampleCountText(for: sensor)
+    }
+    
+    func getDurationText(for sensor: SensorType) -> String {
+        return configurationManager.getDurationText(for: sensor)
+    }
+    
+    func setSampleCount(_ value: Int, for sensor: SensorType) {
+        configurationManager.setSampleCount(value, for: sensor)
+    }
+    
+    func setDuration(_ value: Int, for sensor: SensorType) {
+        configurationManager.setDuration(value, for: sensor)
+    }
+    
+    func setSampleCountText(_ text: String, for sensor: SensorType) {
+        configurationManager.setSampleCountText(text, for: sensor)
+    }
+    
+    func setDurationText(_ text: String, for sensor: SensorType) {
+        configurationManager.setDurationText(text, for: sensor)
+    }
+    
+    // MARK: - Legacy Computed Properties (기존 View 호환성을 위해 유지)
+    
+    var eegSampleCount: Int {
+        get { getSampleCount(for: .eeg) }
+        set { setSampleCount(newValue, for: .eeg) }
+    }
+    
+    var ppgSampleCount: Int {
+        get { getSampleCount(for: .ppg) }
+        set { setSampleCount(newValue, for: .ppg) }
+    }
+    
+    var accelerometerSampleCount: Int {
+        get { getSampleCount(for: .accelerometer) }
+        set { setSampleCount(newValue, for: .accelerometer) }
+    }
+    
+    var eegDurationSeconds: Int {
+        get { getDuration(for: .eeg) }
+        set { setDuration(newValue, for: .eeg) }
+    }
+    
+    var ppgDurationSeconds: Int {
+        get { getDuration(for: .ppg) }
+        set { setDuration(newValue, for: .ppg) }
+    }
+    
+    var accelerometerDurationSeconds: Int {
+        get { getDuration(for: .accelerometer) }
+        set { setDuration(newValue, for: .accelerometer) }
+    }
+    
+    var eegSampleCountText: String {
+        get { getSampleCountText(for: .eeg) }
+        set { setSampleCountText(newValue, for: .eeg) }
+    }
+    
+    var ppgSampleCountText: String {
+        get { getSampleCountText(for: .ppg) }
+        set { setSampleCountText(newValue, for: .ppg) }
+    }
+    
+    var accelerometerSampleCountText: String {
+        get { getSampleCountText(for: .accelerometer) }
+        set { setSampleCountText(newValue, for: .accelerometer) }
+    }
+    
+    var eegDurationText: String {
+        get { getDurationText(for: .eeg) }
+        set { setDurationText(newValue, for: .eeg) }
+    }
+    
+    var ppgDurationText: String {
+        get { getDurationText(for: .ppg) }
+        set { setDurationText(newValue, for: .ppg) }
+    }
+    
+    var accelerometerDurationText: String {
+        get { getDurationText(for: .accelerometer) }
+        set { setDurationText(newValue, for: .accelerometer) }
+    }
+    
+    // MARK: - Validation Methods (UI 에러 상태 업데이트 포함)
+    
+    func validateSampleCount(_ text: String, for sensor: SensorType) -> Bool {
+        let result = configurationManager.validateSampleCount(text, for: sensor)
+        updateValidationState(result)
+        return result.isValid
+    }
+    
+    func validateDuration(_ text: String, for sensor: SensorType) -> Bool {
+        let result = configurationManager.validateDuration(text, for: sensor)
+        updateValidationState(result)
+        return result.isValid
+    }
+    
+    // MARK: - Helper Methods (Manager에 위임)
+    
     func getExpectedTime(for sensor: SensorType, sampleCount: Int) -> Double {
-        return sensor.expectedTime(for: sampleCount)
+        return configurationManager.getExpectedTime(for: sensor, sampleCount: sampleCount)
     }
     
     func getExpectedSamples(for sensor: SensorType, duration: Int) -> Int {
-        return sensor.expectedSamples(for: TimeInterval(duration))
+        return configurationManager.getExpectedSamples(for: sensor, duration: duration)
+    }
+    
+    func resetToDefaults() {
+        configurationManager.resetToDefaults()
+    }
+    
+    func getConfigurationSummary() -> String {
+        return configurationManager.getConfigurationSummary()
+    }
+    
+    func isSensorSelected(_ sensor: SensorType) -> Bool {
+        return configurationManager.isSensorSelected(sensor)
     }
     
     // MARK: - Private Methods
     
-    private enum ValueType {
-        case sampleCount
-        case duration
-    }
-    
-    private func validateAndUpdateValue(_ text: String, for sensor: SensorType, type: ValueType, range: ClosedRange<Int>) -> Bool {
-        guard let value = Int(text), value > 0 else {
-            if !text.isEmpty {
-                showValidationError = true
-                validationMessage = "유효한 숫자를 입력해주세요"
+    /// Manager의 Published 속성들과 UI 바인딩 설정
+    private func setupBindings() {
+        // Manager의 상태 변경을 UI에 반영
+        configurationManager.$selectedCollectionMode
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
             }
-            return false
-        }
+            .store(in: &cancellables)
         
-        let clampedValue = max(range.lowerBound, min(value, range.upperBound))
-        
-        switch type {
-        case .sampleCount:
-            updateSampleCount(clampedValue, for: sensor, originalValue: value)
-        case .duration:
-            updateDuration(clampedValue, for: sensor, originalValue: value)
-        }
-        
-        showValidationError = false
-        return true
-    }
-    
-    private func setupBatchDelegate() {
-        if batchDelegate == nil {
-            batchDelegate = BatchDataConsoleLogger()
-            bluetoothKit.batchDataDelegate = batchDelegate
-        }
-        
-        batchDelegate?.updateSelectedSensors(selectedSensors)
-    }
-    
-    private func configureAllSensors() {
-        let allSensorTypes: [SensorType] = [.eeg, .ppg, .accelerometer]
-        
-        for sensorType in allSensorTypes {
-            if selectedSensors.contains(sensorType) {
-                configureSensor(sensorType, isInitial: true)
-            } else {
-                bluetoothKit.disableDataCollection(for: sensorType)
-                print("🚫 초기 비활성화: \(sensorType.displayName) - 데이터 수집 제외")
+        configurationManager.$selectedSensors
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
             }
-        }
-    }
-    
-    private func applyChanges() {
-        setupBatchDelegate()
+            .store(in: &cancellables)
         
-        if bluetoothKit.isRecording {
-            bluetoothKit.updateRecordingSensors()
-        }
+        configurationManager.$isConfigured
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
         
-        configureAllSensors()
-    }
-    
-    private func configureSensor(_ sensor: SensorType, isInitial: Bool = false) {
-        let prefix = isInitial ? "🔧 초기 설정" : "🔄 자동 변경"
+        // 경고 팝업 상태 바인딩
+        configurationManager.$showRecordingChangeWarning
+            .sink { [weak self] newValue in
+                self?.showRecordingChangeWarning = newValue
+            }
+            .store(in: &cancellables)
         
-        if selectedCollectionMode == .sampleCount {
-            let sampleCount = getSampleCount(for: sensor)
-            bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensor)
-            
-            let expectedTime = getExpectedTime(for: sensor, sampleCount: sampleCount)
-            print("\(prefix): \(sensor.displayName) - \(sampleCount)개 샘플마다 배치 수신")
-            print("   → \(sensor.displayName): \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
-        } else {
-            let duration = getDuration(for: sensor)
-            bluetoothKit.setDataCollection(timeInterval: TimeInterval(duration), for: sensor)
-            
-            let expectedSamples = getExpectedSamples(for: sensor, duration: duration)
-            print("\(prefix): \(sensor.displayName) - \(duration)초마다 배치 수신")
-            print("   → \(sensor.displayName): \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
-        }
+        configurationManager.$pendingSensorSelection
+            .sink { [weak self] newValue in
+                self?.pendingSensorSelection = newValue
+            }
+            .store(in: &cancellables)
     }
     
-    private func updateSampleCount(_ value: Int, for sensor: SensorType, originalValue: Int) {
-        sensorConfigurations[sensor]?.sampleCount = value
-        if value != originalValue {
-            sensorConfigurations[sensor]?.sampleCountText = "\(value)"
-        }
+    /// 유효성 검사 결과를 UI 상태에 반영
+    private func updateValidationState(_ result: BatchDataConfigurationManager.ValidationResult) {
+        showValidationError = !result.isValid
+        validationMessage = result.message ?? ""
     }
-    
-    private func updateDuration(_ value: Int, for sensor: SensorType, originalValue: Int) {
-        sensorConfigurations[sensor]?.duration = value
-        if value != originalValue {
-            sensorConfigurations[sensor]?.durationText = "\(value)"
-        }
-    }
+}
+
+// MARK: - Type Aliases for Backward Compatibility
+
+extension BatchDataConfigurationViewModel {
+    typealias CollectionMode = BatchDataConfigurationManager.CollectionMode
 } 

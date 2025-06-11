@@ -43,6 +43,16 @@ struct SimplifiedBatchDataCollectionView: View {
         .onTapGesture {
             isTextFieldFocused = false
         }
+        .alert("기록 중 센서 변경", isPresented: $viewModel.showRecordingChangeWarning) {
+            Button("기록 중지 후 변경", role: .destructive) {
+                viewModel.confirmSensorChangeWithRecordingStop()
+            }
+            Button("취소", role: .cancel) {
+                viewModel.cancelSensorChange()
+            }
+        } message: {
+            Text("기록 중에는 센서 설정을 변경할 수 없습니다.\n기록을 중지하고 센서를 변경하시겠습니까?")
+        }
     }
     
     // MARK: - View Components
@@ -295,31 +305,33 @@ struct SimplifiedBatchDataCollectionView: View {
         }
     }
     
+    /// ViewModel의 기본값을 사용하여 중복 제거
     private func defaultSampleCount(for sensor: SensorType) -> Int {
-        switch sensor {
-        case .eeg: return 250
-        case .ppg: return 50
-        case .accelerometer: return 30
-        case .battery: return 1
-        }
+        return viewModel.getSampleCount(for: sensor)
     }
     
+    /// Generic한 바인딩을 생성하여 switch문 중복 제거
     private func sampleCountBinding(for sensor: SensorType) -> Binding<String> {
-        switch sensor {
-        case .eeg: return $viewModel.eegSampleCountText
-        case .ppg: return $viewModel.ppgSampleCountText
-        case .accelerometer: return $viewModel.accelerometerSampleCountText
-        case .battery: return .constant("1") // 배터리는 특별 처리
-        }
+        return Binding<String>(
+            get: { 
+                self.viewModel.getSampleCountText(for: sensor)
+            },
+            set: { newValue in
+                self.viewModel.setSampleCountText(newValue, for: sensor)
+            }
+        )
     }
     
+    /// Generic한 바인딩을 생성하여 switch문 중복 제거
     private func durationBinding(for sensor: SensorType) -> Binding<String> {
-        switch sensor {
-        case .eeg: return $viewModel.eegDurationText
-        case .ppg: return $viewModel.ppgDurationText
-        case .accelerometer: return $viewModel.accelerometerDurationText
-        case .battery: return .constant("1") // 배터리는 특별 처리
-        }
+        return Binding<String>(
+            get: { 
+                self.viewModel.getDurationText(for: sensor)
+            },
+            set: { newValue in
+                self.viewModel.setDurationText(newValue, for: sensor)
+            }
+        )
     }
 }
 
