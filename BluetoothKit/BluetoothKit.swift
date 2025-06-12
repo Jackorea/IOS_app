@@ -284,10 +284,15 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     /// 각 센서별 데이터 수집 설정
     private var dataCollectionConfigs: [SensorType: DataCollectionConfig] = [:]
     
-    /// 센서별 데이터 버퍼
+    /// 센서별 데이터 버퍼 (샘플 기반 모드용)
     private var eegBuffer: [EEGReading] = []
     private var ppgBuffer: [PPGReading] = []
     private var accelerometerBuffer: [AccelerometerReading] = []
+    
+    /// 시간 기반 배치 관리자들
+    private var eegTimeBatchManager: TimeBatchManager<EEGReading>?
+    private var ppgTimeBatchManager: TimeBatchManager<PPGReading>?
+    private var accelerometerTimeBatchManager: TimeBatchManager<AccelerometerReading>?
     
     // MARK: - Private Components
     
@@ -295,6 +300,63 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     private let dataRecorder: DataRecorder
     private let configuration: SensorConfiguration
     private let logger: InternalLogger
+    
+    // MARK: - Time-based Batch Manager
+    
+    /// 시간 기반 배치 관리를 위한 제네릭 클래스
+    private class TimeBatchManager<T> where T: Sendable {
+        private var buffer: [T] = []
+        private var batchStartTime: Date?
+        private let targetInterval: TimeInterval
+        private let timestampExtractor: (T) -> Date
+        
+        init(timeInterval: TimeInterval, timestampExtractor: @escaping (T) -> Date) {
+            self.targetInterval = timeInterval
+            self.timestampExtractor = timestampExtractor
+        }
+        
+        /// 샘플을 추가하고 배치가 완성되면 반환
+        func addSample(_ sample: T) -> [T]? {
+            let sampleTime = timestampExtractor(sample)
+            
+            // 첫 번째 샘플이면 배치 시작 시간 설정
+            if batchStartTime == nil {
+                batchStartTime = sampleTime
+            }
+            
+            buffer.append(sample)
+            
+            // 시간 간격 확인
+            let elapsed = sampleTime.timeIntervalSince(batchStartTime!)
+            
+            if elapsed >= targetInterval {
+                let batch = buffer
+                buffer.removeAll()
+                batchStartTime = sampleTime  // 새로운 배치 시작
+                return batch
+            }
+            
+            return nil
+        }
+        
+        /// 현재 버퍼 상태 리셋
+        func reset() {
+            buffer.removeAll()
+            batchStartTime = nil
+        }
+        
+        /// 현재 버퍼의 샘플 개수
+        var currentBufferCount: Int {
+            return buffer.count
+        }
+        
+        /// 현재 배치의 경과 시간
+        var currentElapsed: TimeInterval? {
+            guard let startTime = batchStartTime, !buffer.isEmpty else { return nil }
+            let lastSampleTime = timestampExtractor(buffer.last!)
+            return lastSampleTime.timeIntervalSince(startTime)
+        }
+    }
     
     // MARK: - Initialization
     
@@ -484,6 +546,18 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
         let config = DataCollectionConfig(sensorType: sensorType, timeInterval: timeInterval)
         dataCollectionConfigs[sensorType] = config
         clearBuffer(for: sensorType)
+        
+        // 시간 기반 배치 관리자 초기화
+        switch sensorType {
+        case .eeg:
+            eegTimeBatchManager = TimeBatchManager<EEGReading>(timeInterval: timeInterval) { $0.timestamp }
+        case .ppg:
+            ppgTimeBatchManager = TimeBatchManager<PPGReading>(timeInterval: timeInterval) { $0.timestamp }
+        case .accelerometer:
+            accelerometerTimeBatchManager = TimeBatchManager<AccelerometerReading>(timeInterval: timeInterval) { $0.timestamp }
+        case .battery:
+            break // 배터리는 배치 처리하지 않음
+        }
     }
     
     /// 샘플 개수를 기준으로 배치 데이터 수집을 설정합니다.
@@ -511,6 +585,18 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
         let config = DataCollectionConfig(sensorType: sensorType, sampleCount: sampleCount)
         dataCollectionConfigs[sensorType] = config
         clearBuffer(for: sensorType)
+        
+        // 샘플 기반 모드에서는 시간 기반 관리자 제거
+        switch sensorType {
+        case .eeg:
+            eegTimeBatchManager = nil
+        case .ppg:
+            ppgTimeBatchManager = nil
+        case .accelerometer:
+            accelerometerTimeBatchManager = nil
+        case .battery:
+            break
+        }
     }
     
     /// 특정 센서의 배치 데이터 수집을 비활성화합니다.
@@ -561,17 +647,20 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     
     // MARK: - Private Setup
     
-    /// 센서별 버퍼를 초기화합니다.
+    /// 지정된 센서의 데이터 버퍼를 초기화합니다.
     private func clearBuffer(for sensorType: SensorType) {
         switch sensorType {
         case .eeg:
             eegBuffer.removeAll()
+            eegTimeBatchManager?.reset()
         case .ppg:
             ppgBuffer.removeAll()
+            ppgTimeBatchManager?.reset()
         case .accelerometer:
             accelerometerBuffer.removeAll()
+            accelerometerTimeBatchManager?.reset()
         case .battery:
-            break // 배터리는 버퍼 없음
+            break // 배터리는 버퍼가 없음
         }
     }
     
@@ -586,14 +675,27 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     private func addToEEGBuffer(_ reading: EEGReading) {
         guard let config = dataCollectionConfigs[.eeg] else { return }
         
-        eegBuffer.append(reading)
-        
-        if eegBuffer.count >= config.targetSampleCount {
-            let batch = Array(eegBuffer.prefix(config.targetSampleCount))
-            eegBuffer.removeFirst(config.targetSampleCount)
+        switch config.mode {
+        case .timeInterval(_):
+            // 시간 기반 모드: TimeBatchManager 사용
+            if let timeBatchManager = eegTimeBatchManager,
+               let batch = timeBatchManager.addSample(reading) {
+                DispatchQueue.main.async { [weak self] in
+                    self?.batchDataDelegate?.didReceiveEEGBatch(batch)
+                }
+            }
             
-            DispatchQueue.main.async { [weak self] in
-                self?.batchDataDelegate?.didReceiveEEGBatch(batch)
+        case .sampleCount(let targetCount):
+            // 샘플 기반 모드: 기존 버퍼 사용
+            eegBuffer.append(reading)
+            
+            if eegBuffer.count >= targetCount {
+                let batch = Array(eegBuffer.prefix(targetCount))
+                eegBuffer.removeFirst(targetCount)
+                
+                DispatchQueue.main.async { [weak self] in
+                    self?.batchDataDelegate?.didReceiveEEGBatch(batch)
+                }
             }
         }
     }
@@ -602,14 +704,27 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     private func addToPPGBuffer(_ reading: PPGReading) {
         guard let config = dataCollectionConfigs[.ppg] else { return }
         
-        ppgBuffer.append(reading)
-        
-        if ppgBuffer.count >= config.targetSampleCount {
-            let batch = Array(ppgBuffer.prefix(config.targetSampleCount))
-            ppgBuffer.removeFirst(config.targetSampleCount)
+        switch config.mode {
+        case .timeInterval(_):
+            // 시간 기반 모드: TimeBatchManager 사용
+            if let timeBatchManager = ppgTimeBatchManager,
+               let batch = timeBatchManager.addSample(reading) {
+                DispatchQueue.main.async { [weak self] in
+                    self?.batchDataDelegate?.didReceivePPGBatch(batch)
+                }
+            }
             
-            DispatchQueue.main.async { [weak self] in
-                self?.batchDataDelegate?.didReceivePPGBatch(batch)
+        case .sampleCount(let targetCount):
+            // 샘플 기반 모드: 기존 버퍼 사용
+            ppgBuffer.append(reading)
+            
+            if ppgBuffer.count >= targetCount {
+                let batch = Array(ppgBuffer.prefix(targetCount))
+                ppgBuffer.removeFirst(targetCount)
+                
+                DispatchQueue.main.async { [weak self] in
+                    self?.batchDataDelegate?.didReceivePPGBatch(batch)
+                }
             }
         }
     }
@@ -618,14 +733,27 @@ public class BluetoothKit: ObservableObject, @unchecked Sendable {
     private func addToAccelerometerBuffer(_ reading: AccelerometerReading) {
         guard let config = dataCollectionConfigs[.accelerometer] else { return }
         
-        accelerometerBuffer.append(reading)
-        
-        if accelerometerBuffer.count >= config.targetSampleCount {
-            let batch = Array(accelerometerBuffer.prefix(config.targetSampleCount))
-            accelerometerBuffer.removeFirst(config.targetSampleCount)
+        switch config.mode {
+        case .timeInterval(_):
+            // 시간 기반 모드: TimeBatchManager 사용
+            if let timeBatchManager = accelerometerTimeBatchManager,
+               let batch = timeBatchManager.addSample(reading) {
+                DispatchQueue.main.async { [weak self] in
+                    self?.batchDataDelegate?.didReceiveAccelerometerBatch(batch)
+                }
+            }
             
-            DispatchQueue.main.async { [weak self] in
-                self?.batchDataDelegate?.didReceiveAccelerometerBatch(batch)
+        case .sampleCount(let targetCount):
+            // 샘플 기반 모드: 기존 버퍼 사용
+            accelerometerBuffer.append(reading)
+            
+            if accelerometerBuffer.count >= targetCount {
+                let batch = Array(accelerometerBuffer.prefix(targetCount))
+                accelerometerBuffer.removeFirst(targetCount)
+                
+                DispatchQueue.main.async { [weak self] in
+                    self?.batchDataDelegate?.didReceiveAccelerometerBatch(batch)
+                }
             }
         }
     }
