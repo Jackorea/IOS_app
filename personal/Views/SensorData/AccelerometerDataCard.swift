@@ -74,48 +74,7 @@ struct AccelerometerDataCard: View {
                         .font(.caption)
                         .foregroundColor(.gray)
                     Spacer()
-                    if showRawData {
-                        Text("단위: LSB")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    } else {
-                        Text("단위: LSB")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
                 }
-            }
-            
-            // 움직임 감지 모드일 때 중력 상태 표시
-            if !showRawData {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                    Text("중력 성분 자동 제거됨")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                    Spacer()
-                    if isInitialized {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                            Text("안정화 완료")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                        }
-                    } else {
-                        HStack(spacing: 4) {
-                            ProgressView()
-                                .scaleEffect(0.6)
-                            Text("중력 보정 중...")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        }
-                    }
-                }
-                .padding(.horizontal, 4)
             }
             
             // 데이터 표시 섹션
@@ -127,7 +86,7 @@ struct AccelerometerDataCard: View {
                     Text("\(showRawData ? reading.x : linearAccelX)")
                         .font(.title3)
                         .fontWeight(.semibold)
-                        .foregroundColor(showRawData ? .primary : (abs(linearAccelX) > 100 ? .red : .green))
+                        .foregroundColor(.primary)
                 }
                 .frame(maxWidth: .infinity)
                 
@@ -138,7 +97,7 @@ struct AccelerometerDataCard: View {
                     Text("\(showRawData ? reading.y : linearAccelY)")
                         .font(.title3)
                         .fontWeight(.semibold)
-                        .foregroundColor(showRawData ? .primary : (abs(linearAccelY) > 100 ? .red : .green))
+                        .foregroundColor(.primary)
                 }
                 .frame(maxWidth: .infinity)
                 
@@ -149,7 +108,7 @@ struct AccelerometerDataCard: View {
                     Text("\(showRawData ? reading.z : linearAccelZ)")
                         .font(.title3)
                         .fontWeight(.semibold)
-                        .foregroundColor(showRawData ? .primary : (abs(linearAccelZ) > 100 ? .red : .green))
+                        .foregroundColor(.primary)
                 }
                 .frame(maxWidth: .infinity)
             }
