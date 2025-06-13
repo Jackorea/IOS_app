@@ -39,32 +39,46 @@ struct AccelerometerDataCard: View {
                         .font(.headline)
                         .foregroundColor(.blue)
                     Spacer()
-                    
-                    // 개선된 토글 버튼
-                    Button(action: {
-                        showRawData.toggle()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: showRawData ? "chart.bar" : "move.3d")
-                                .font(.caption)
-                            Text(showRawData ? "원시 데이터" : "움직임 감지")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                        }
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.blue.opacity(0.15))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.blue.opacity(0.5), lineWidth: 1)
-                                )
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
                 }
+                
+                // 세그먼트 컨트롤 스타일의 토글
+                HStack(spacing: 0) {
+                    // 원시값 버튼
+                    Button(action: {
+                        showRawData = true
+                    }) {
+                        Text("원시값")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(showRawData ? Color.blue : Color.clear)
+                            )
+                            .foregroundColor(showRawData ? .white : .blue)
+                    }
+                    
+                    // 움직임 버튼
+                    Button(action: {
+                        showRawData = false
+                    }) {
+                        Text("움직임")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(!showRawData ? Color.blue : Color.clear)
+                            )
+                            .foregroundColor(!showRawData ? .white : .blue)
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.blue, lineWidth: 1)
+                )
                 
                 // 설명 텍스트
                 HStack {
