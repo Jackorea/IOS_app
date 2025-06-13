@@ -58,6 +58,7 @@ struct AccelerometerDataCard: View {
                             )
                             .foregroundColor(bluetoothKit.accelerometerMode == .raw ? .white : .blue)
                     }
+                    .disabled(bluetoothKit.isRecording)
                     
                     // 움직임 버튼
                     Button(action: {
@@ -74,11 +75,13 @@ struct AccelerometerDataCard: View {
                             )
                             .foregroundColor(bluetoothKit.accelerometerMode == .motion ? .white : .blue)
                     }
+                    .disabled(bluetoothKit.isRecording)
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.blue, lineWidth: 1)
                 )
+                .opacity(bluetoothKit.isRecording ? 0.5 : 1.0)
                 
                 // 설명 텍스트
                 HStack {
