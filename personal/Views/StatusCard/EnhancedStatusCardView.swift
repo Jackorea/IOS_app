@@ -24,15 +24,33 @@ struct EnhancedStatusCardView: View {
     
     private var connectionHeader: some View {
         HStack {
-            Image(systemName: connectionIcon)
-                .font(.system(size: 24))
-                .foregroundColor(connectionColor)
-                .symbolEffect(.bounce, value: bluetoothKit.connectionState)
-            
             VStack(alignment: .leading, spacing: 2) {
-                Text(bluetoothKit.connectionStatusDescription)
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                HStack(spacing: 4) {
+                    Text(bluetoothKit.connectionStatusDescription)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    Image(systemName: connectionIcon)
+                        .font(.system(size: 16))
+                        .foregroundColor(connectionColor)
+                        .symbolEffect(.bounce, value: bluetoothKit.connectionState)
+                }
+                
+                if case .connected = bluetoothKit.connectionState {
+                    Text("샘플링 레이트")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 2)
+                    Text("EEG: 250Hz")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("PPG: 50Hz")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("ACC: 30Hz")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
             Spacer()
