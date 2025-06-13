@@ -846,11 +846,6 @@ extension BluetoothKit: SensorDataDelegate {
     internal func didReceiveBatteryData(_ reading: BatteryReading) {
         latestBatteryReading = reading
         
-        // 배치 수집이 설정된 센서만 기록
-        if isRecording && dataCollectionConfigs[.battery] != nil {
-            dataRecorder.recordBatteryData(reading)
-        }
-        
         // 배터리는 배치가 아닌 개별 업데이트로 처리
         DispatchQueue.main.async { [weak self] in
             self?.batchDataDelegate?.didReceiveBatteryUpdate(reading)

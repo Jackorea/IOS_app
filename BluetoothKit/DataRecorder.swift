@@ -438,3 +438,4 @@ private struct SensorDataJSON: Encodable {
     let accelY: [Int]
     let accelZ: [Int]
 } 
+
