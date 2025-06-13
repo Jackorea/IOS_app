@@ -129,7 +129,8 @@ struct SimplifiedBatchDataCollectionView: View {
                 }
             )) {
                 Text("샘플 수").tag(BatchDataConfigurationManager.CollectionMode.sampleCount)
-                Text("시간").tag(BatchDataConfigurationManager.CollectionMode.duration)
+                Text("초단위").tag(BatchDataConfigurationManager.CollectionMode.duration)
+                Text("분단위").tag(BatchDataConfigurationManager.CollectionMode.minuteDuration)
             }
             .pickerStyle(.segmented)
             .disabled(isEffectivelyMonitoring || bluetoothKit.isRecording)
