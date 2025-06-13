@@ -3,9 +3,9 @@ import BluetoothKit
 
 struct AccelerometerDataCard: View {
     let reading: AccelerometerReading
+    @ObservedObject var bluetoothKit: BluetoothKit
     
-    // 토글 상태 및 중력 추정값 저장
-    @State private var showRawData = true
+    // 중력 추정값 저장
     @State private var gravityX: Double = 0
     @State private var gravityY: Double = 0
     @State private var gravityZ: Double = 0
@@ -45,7 +45,7 @@ struct AccelerometerDataCard: View {
                 HStack(spacing: 0) {
                     // 원시값 버튼
                     Button(action: {
-                        showRawData = true
+                        bluetoothKit.accelerometerMode = .raw
                     }) {
                         Text("원시값")
                             .font(.subheadline)
@@ -54,14 +54,14 @@ struct AccelerometerDataCard: View {
                             .padding(.vertical, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(showRawData ? Color.blue : Color.clear)
+                                    .fill(bluetoothKit.accelerometerMode == .raw ? Color.blue : Color.clear)
                             )
-                            .foregroundColor(showRawData ? .white : .blue)
+                            .foregroundColor(bluetoothKit.accelerometerMode == .raw ? .white : .blue)
                     }
                     
                     // 움직임 버튼
                     Button(action: {
-                        showRawData = false
+                        bluetoothKit.accelerometerMode = .motion
                     }) {
                         Text("움직임")
                             .font(.subheadline)
@@ -70,9 +70,9 @@ struct AccelerometerDataCard: View {
                             .padding(.vertical, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(!showRawData ? Color.blue : Color.clear)
+                                    .fill(bluetoothKit.accelerometerMode == .motion ? Color.blue : Color.clear)
                             )
-                            .foregroundColor(!showRawData ? .white : .blue)
+                            .foregroundColor(bluetoothKit.accelerometerMode == .motion ? .white : .blue)
                     }
                 }
                 .background(
@@ -82,9 +82,7 @@ struct AccelerometerDataCard: View {
                 
                 // 설명 텍스트
                 HStack {
-                    Text(showRawData ? 
-                         "센서 원시값 (중력 포함)" : 
-                         "순수 움직임 (중력 제거)")
+                    Text(bluetoothKit.accelerometerMode.description)
                         .font(.caption)
                         .foregroundColor(.gray)
                     Spacer()
@@ -97,7 +95,7 @@ struct AccelerometerDataCard: View {
                     Text("X축")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text("\(showRawData ? reading.x : linearAccelX)")
+                    Text("\(bluetoothKit.accelerometerMode == .raw ? reading.x : linearAccelX)")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
@@ -108,7 +106,7 @@ struct AccelerometerDataCard: View {
                     Text("Y축")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text("\(showRawData ? reading.y : linearAccelY)")
+                    Text("\(bluetoothKit.accelerometerMode == .raw ? reading.y : linearAccelY)")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
@@ -119,7 +117,7 @@ struct AccelerometerDataCard: View {
                     Text("Z축")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text("\(showRawData ? reading.z : linearAccelZ)")
+                    Text("\(bluetoothKit.accelerometerMode == .raw ? reading.z : linearAccelZ)")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
@@ -174,5 +172,8 @@ struct AccelerometerDataCard: View {
 }
 
 #Preview {
-    AccelerometerDataCard(reading: AccelerometerReading(x: 1234, y: -567, z: 890))
+    AccelerometerDataCard(
+        reading: AccelerometerReading(x: 1234, y: -567, z: 890),
+        bluetoothKit: BluetoothKit()
+    )
 } 

@@ -22,7 +22,7 @@ struct SensorDataView: View {
             
             // 가속도계 데이터 카드
             if let accelReading = bluetoothKit.latestAccelerometerReading {
-                AccelerometerDataCard(reading: accelReading)
+                AccelerometerDataCard(reading: accelReading, bluetoothKit: bluetoothKit)
                     .frame(maxWidth: .infinity)
             }
             
