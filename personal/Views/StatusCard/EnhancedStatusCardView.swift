@@ -5,288 +5,281 @@ import BluetoothKit
 
 /// BluetoothKit의 연결 상태와 컨트롤을 보여주는 향상된 상태 카드 뷰
 struct EnhancedStatusCardView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothViewModel: BluetoothKitViewModel
+    @State private var isFirstConnection = true
     
     var body: some View {
-        VStack(spacing: 16) {
-            connectionHeader
-            
-            if !bluetoothKit.isConnected {
-                disconnectedContent
-            } else {
-                connectedContent
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(cardBackground)
-    }
-    
-    private var connectionHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 8) {
-                    Text(bluetoothKit.connectionStatusDescription)
+        VStack(alignment: .leading, spacing: 16) {
+            // 헤더
+            HStack {
+                deviceIcon
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(bluetoothViewModel.isConnected ? "디바이스 연결됨" : "연결 대기 중")
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .fontWeight(.semibold)
+                        .foregroundColor(bluetoothViewModel.isConnected ? .green : .primary)
                     
-                    Image(systemName: connectionIcon)
-                        .font(.system(size: 20))
-                        .foregroundColor(connectionColor)
-                        .symbolEffect(.bounce, value: bluetoothKit.connectionState)
+                    Text(bluetoothViewModel.connectionStatusDescription)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
                 
-                if bluetoothKit.isConnected {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("샘플링 레이트")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("PPG 250Hz")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("EEG 50Hz")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("ACC 30Hz")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.top, 4)
-                }
+                Spacer()
+                
+                // 연결 상태 표시
+                connectionStatusIndicator
             }
             
-            Spacer()
-            
-            recordingIndicator
+            if !bluetoothViewModel.isConnected {
+                discoveredDevicesSection
+            } else {
+                connectedDeviceSection
+            }
         }
-        .frame(maxWidth: .infinity)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.gray.opacity(0.1))
+                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+        )
+        .onChange(of: bluetoothViewModel.isConnected) { isConnected in
+            if isConnected && isFirstConnection {
+                isFirstConnection = false
+            }
+        }
+    }
+    
+    // MARK: - View Components
+    
+    private var deviceIcon: some View {
+        Image(systemName: bluetoothViewModel.isConnected ? "sensor.tag.radiowaves.forward.fill" : "sensor.tag.radiowaves.forward")
+            .font(.system(size: 24))
+            .foregroundColor(bluetoothViewModel.isConnected ? .blue : .gray)
+            .symbolEffect(.variableColor, isActive: bluetoothViewModel.isConnected)
+    }
+    
+    private var connectionStatusIndicator: some View {
+        HStack(spacing: 8) {
+            if bluetoothViewModel.isScanning {
+                ProgressView()
+                    .scaleEffect(0.8)
+                    .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+            }
+            
+            Circle()
+                .fill(bluetoothViewModel.isConnected ? Color.green : (bluetoothViewModel.isScanning ? Color.blue : Color.gray))
+                .frame(width: 12, height: 12)
+                .symbolEffect(.pulse, isActive: bluetoothViewModel.isScanning)
+        }
     }
     
     @ViewBuilder
-    private var recordingIndicator: some View {
-        if bluetoothKit.isRecording {
-            VStack {
-                Image(systemName: "record.circle.fill")
-                    .foregroundColor(.red)
-                    .symbolEffect(.pulse)
-                Text("기록")
-                    .font(.caption2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.red)
+    private var discoveredDevicesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("디바이스 검색")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Spacer()
+                
+                Button(bluetoothViewModel.isScanning ? "중지" : "스캔") {
+                    if bluetoothViewModel.isScanning {
+                        bluetoothViewModel.stopScanning()
+                    } else {
+                        bluetoothViewModel.startScanning()
+                    }
+                }
+                .buttonStyle(.bordered)
+                .tint(.blue)
+            }
+            
+            if bluetoothViewModel.discoveredDevices.isEmpty {
+                if bluetoothViewModel.isScanning {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("디바이스를 찾는 중...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 8)
+                } else {
+                    Text("스캔 버튼을 눌러 LinkBand 디바이스를 찾아보세요.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 8)
+                }
+            } else {
+                LazyVStack(spacing: 8) {
+                    ForEach(bluetoothViewModel.discoveredDevices.prefix(3)) { device in
+                        deviceRowView(device: device)
+                    }
+                    
+                    if bluetoothViewModel.discoveredDevices.count > 3 {
+                        Text("\(bluetoothViewModel.discoveredDevices.count - 3)개 더...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                }
             }
         }
     }
     
-    private var disconnectedContent: some View {
-        VStack(spacing: 16) {
-            scanControls
-            Divider()
-            autoReconnectToggle
-            deviceList
-        }
-    }
-    
-    private var scanControls: some View {
-        VStack(spacing: 12) {
-            if bluetoothKit.isScanning {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+    @ViewBuilder
+    private var connectedDeviceSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("연결된 디바이스")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
                 
-                Button("스캔 중지") {
-                    bluetoothKit.stopScanning()
+                Spacer()
+                
+                Button("연결 해제") {
+                    bluetoothViewModel.disconnect()
                 }
                 .buttonStyle(.bordered)
                 .tint(.red)
-            } else {
-                Button("스캔 시작") {
-                    bluetoothKit.startScanning()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
-                .frame(maxWidth: .infinity)
+            }
+            
+            // 데이터 수신 상태
+            dataReceptionStatus
+            
+            // 자동 재연결 설정
+            autoReconnectToggle
+        }
+    }
+    
+    private var dataReceptionStatus: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("실시간 데이터")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 16) {
+                DataRateIndicator(
+                    title: "EEG",
+                    hasData: bluetoothViewModel.latestEEGReading != nil,
+                    color: .purple
+                )
+                
+                DataRateIndicator(
+                    title: "PPG",
+                    hasData: bluetoothViewModel.latestPPGReading != nil,
+                    color: .red
+                )
+                
+                DataRateIndicator(
+                    title: "ACC",
+                    hasData: bluetoothViewModel.latestAccelerometerReading != nil,
+                    color: .blue
+                )
+                
+                DataRateIndicator(
+                    title: "BAT",
+                    hasData: bluetoothViewModel.latestBatteryReading != nil,
+                    color: .green
+                )
+                
+                Spacer()
             }
         }
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.gray.opacity(0.1))
+        )
     }
     
     private var autoReconnectToggle: some View {
         HStack {
-            Image(systemName: "arrow.clockwise")
-                .foregroundColor(.blue)
-                .font(.subheadline)
-            
-            Text("자동 재연결")
-                .font(.subheadline)
-            
-            Spacer()
-            
-            Toggle("", isOn: $bluetoothKit.isAutoReconnectEnabled)
-                .labelsHidden()
-                .onChange(of: bluetoothKit.isAutoReconnectEnabled) { newValue in
-                    bluetoothKit.setAutoReconnect(enabled: newValue)
-                }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 4)
-    }
-    
-    @ViewBuilder
-    private var deviceList: some View {
-        if !bluetoothKit.discoveredDevices.isEmpty {
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("발견된 디바이스")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                
-                ForEach(0..<bluetoothKit.discoveredDevices.count, id: \.self) { index in
-                    let device = bluetoothKit.discoveredDevices[index]
-                    deviceRow(for: device)
-                }
-            }
-            .frame(maxWidth: .infinity)
-        }
-    }
-    
-    private func deviceRow(for device: BluetoothDevice) -> some View {
-        HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(device.name)
-                    .font(.subheadline)
+                Text("자동 재연결")
+                    .font(.caption)
                     .fontWeight(.medium)
+                
+                Text("연결이 끊어지면 자동으로 재연결합니다")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
             
             Spacer()
             
-            Button("연결") {
-                bluetoothKit.connect(to: device)
-            }
-            .buttonStyle(.bordered)
-            .tint(.blue)
+            Toggle("", isOn: Binding(
+                get: { bluetoothViewModel.isAutoReconnectEnabled },
+                set: { bluetoothViewModel.setAutoReconnect(enabled: $0) }
+            ))
+            .toggleStyle(SwitchToggleStyle())
         }
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+    }
+    
+    private func deviceRowView(device: BluetoothDevice) -> some View {
+        Button(action: {
+            bluetoothViewModel.connect(to: device)
+        }) {
+            HStack {
+                Image(systemName: "sensor.tag.radiowaves.forward")
+                    .foregroundColor(.blue)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(device.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    
+                    Text("LinkBand 센서")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(deviceRowBackground)
-    }
-    
-    private var deviceRowBackground: some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(Color.blue.opacity(0.05))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.blue.opacity(0.2), lineWidth: 1)
-            )
-    }
-    
-    private var connectedContent: some View {
-        VStack(spacing: 16) {
-            Divider()
-            dataRateIndicators
-        }
-    }
-    
-    private var dataRateIndicators: some View {
-        HStack {
-            DataRateIndicator(
-                title: "EEG",
-                hasData: bluetoothKit.latestEEGReading != nil,
-                icon: "brain.head.profile"
-            )
-            
-            Spacer()
-            
-            DataRateIndicator(
-                title: "PPG",
-                hasData: bluetoothKit.latestPPGReading != nil,
-                icon: "heart.fill"
-            )
-            
-            Spacer()
-            
-            DataRateIndicator(
-                title: "ACCEL",
-                hasData: bluetoothKit.latestAccelerometerReading != nil,
-                icon: "move.3d"
-            )
-            
-            Spacer()
-            
-            DataRateIndicator(
-                title: "BATT",
-                hasData: bluetoothKit.latestBatteryReading != nil,
-                icon: "battery.75"
-            )
-        }
-        .frame(maxWidth: .infinity)
-    }
-    
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(Color.gray.opacity(0.1))
-            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
-    }
-    
-    private var connectionIcon: String {
-        switch bluetoothKit.connectionState {
-        case .disconnected:
-            return "wave.3.right.circle"
-        case .scanning:
-            return "magnifyingglass.circle"
-        case .connecting:
-            return "arrow.triangle.2.circlepath.circle"
-        case .connected:
-            return "wave.3.right.circle.fill"
-        case .reconnecting:
-            return "arrow.clockwise.circle"
-        case .failed:
-            return "exclamationmark.triangle.fill"
-        }
-    }
-    
-    private var connectionColor: Color {
-        switch bluetoothKit.connectionState {
-        case .disconnected:
-            return .gray
-        case .scanning:
-            return .blue
-        case .connecting, .reconnecting:
-            return .orange
-        case .connected:
-            return .green
-        case .failed:
-            return .red
-        }
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        )
     }
 }
 
-/// 센서 상태를 표시하는 데이터 레이트 인디케이터 컴포넌트
+// MARK: - Data Rate Indicator
+
 struct DataRateIndicator: View {
     let title: String
     let hasData: Bool
-    let icon: String
+    let color: Color
     
     var body: some View {
         VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(hasData ? .green : .gray)
-                .symbolEffect(.pulse, value: hasData)
+            Circle()
+                .fill(hasData ? color : Color.gray.opacity(0.3))
+                .frame(width: 8, height: 8)
+                .symbolEffect(.pulse, isActive: hasData)
             
             Text(title)
                 .font(.caption2)
                 .fontWeight(.medium)
-                .foregroundColor(.secondary)
-            
-            Circle()
-                .fill(hasData ? Color.green : Color.gray.opacity(0.5))
-                .frame(width: 6, height: 6)
+                .foregroundColor(hasData ? color : .secondary)
         }
     }
 }
 
 #Preview {
-    EnhancedStatusCardView(bluetoothKit: BluetoothKit())
+    EnhancedStatusCardView(bluetoothViewModel: BluetoothKitViewModel())
+        .padding()
 } 

@@ -1,71 +1,51 @@
 import SwiftUI
 import BluetoothKit
-import UniformTypeIdentifiers
+import QuickLook
 
 // MARK: - Recorded Files View
 
 struct RecordedFilesView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
-    @Environment(\.dismiss) private var dismiss
-    @State private var recordedFiles: [URL] = []
+    @ObservedObject var bluetoothViewModel: BluetoothKitViewModel
     @State private var selectedFileURL: URL?
-    @State private var showingShareSheet = false
     @State private var showingQuickLook = false
+    @State private var showingDeleteAlert = false
+    @State private var showingDeleteAllAlert = false
+    @State private var showingShareSheet = false
     @State private var shareItems: [Any] = []
+    @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
-        NavigationStack {
-            Group {
-                if recordedFiles.isEmpty {
-                    ContentUnavailableView(
-                        "기록 파일 없음",
-                        systemImage: "folder",
-                        description: Text("센서 데이터 기록을 시작하면 여기에 파일이 표시됩니다.")
-                    )
+        NavigationView {
+            VStack {
+                if bluetoothViewModel.recordedFiles.isEmpty {
+                    emptyStateView
                 } else {
-                    List {
-                        // Files list
-                        Section("파일") {
-                            ForEach(groupedFiles.keys.sorted().reversed(), id: \.self) { dateString in
-                                Section(dateString) {
-                                    ForEach(groupedFiles[dateString] ?? [], id: \.self) { url in
-                                        FileRowView(
-                                            url: url,
-                                            onTap: { previewFile(url) },
-                                            onShare: { shareFile(url) }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    filesList
                 }
             }
             .navigationTitle("기록된 파일")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    if !recordedFiles.isEmpty {
-                        Button(action: openInFiles) {
-                            Image(systemName: "folder.badge.gearshape")
-                        }
-                        .help("Open recordings directory info")
-                    }
-                    
-                    Button("완료") {
-                        dismiss()
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("닫기") {
+                        presentationMode.wrappedValue.dismiss()
                     }
                 }
-            }
-            .onAppear {
-                refreshFiles()
-            }
-            .refreshable {
-                refreshFiles()
-            }
-            .sheet(isPresented: $showingShareSheet) {
-                if !shareItems.isEmpty {
-                    ShareSheet(items: shareItems)
+                
+                if !bluetoothViewModel.recordedFiles.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Menu {
+                            Button("모든 파일 공유") {
+                                shareAllFiles()
+                            }
+                            
+                            Button("모든 파일 삭제", role: .destructive) {
+                                showingDeleteAllAlert = true
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                    }
                 }
             }
             .sheet(isPresented: $showingQuickLook) {
@@ -73,47 +53,90 @@ struct RecordedFilesView: View {
                     QuickLookView(url: url)
                 }
             }
-        }
-    }
-    
-    private var groupedFiles: [String: [URL]] {
-        Dictionary(grouping: recordedFiles) { url in
-            let fileName = url.lastPathComponent
-            // Extract date from filename (assuming format: YYYYMMDD_HHMMSS_type.ext)
-            if let dateStr = fileName.components(separatedBy: "_").first,
-               dateStr.count == 8 {
-                let year = String(dateStr.prefix(4))
-                let month = String(dateStr.dropFirst(4).prefix(2))
-                let day = String(dateStr.dropFirst(6).prefix(2))
-                return "\(year)-\(month)-\(day)"
+            .sheet(isPresented: $showingShareSheet) {
+                ShareSheet(items: shareItems)
             }
-            return "기타"
+            .alert("파일 삭제", isPresented: $showingDeleteAlert) {
+                Button("삭제", role: .destructive) {
+                    if let url = selectedFileURL {
+                        deleteFile(url)
+                    }
+                }
+                Button("취소", role: .cancel) { }
+            } message: {
+                Text("선택한 파일을 삭제하시겠습니까?")
+            }
+            .alert("모든 파일 삭제", isPresented: $showingDeleteAllAlert) {
+                Button("모든 파일 삭제", role: .destructive) {
+                    deleteAllFiles()
+                }
+                Button("취소", role: .cancel) { }
+            } message: {
+                Text("기록된 모든 파일을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+            }
+        }
+        .onAppear {
+            bluetoothViewModel.refreshRecordedFiles()
         }
     }
     
-    private var totalFileSize: String {
-        let totalBytes = recordedFiles.compactMap { url in
-            try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64
-        }.reduce(0, +)
-        
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: totalBytes)
-    }
-    
-    private func refreshFiles() {
-        recordedFiles = bluetoothKit.recordedFiles.sorted { url1, url2 in
-            // Sort by modification date, newest first
-            let date1 = (try? FileManager.default.attributesOfItem(atPath: url1.path)[.modificationDate] as? Date) ?? Date.distantPast
-            let date2 = (try? FileManager.default.attributesOfItem(atPath: url2.path)[.modificationDate] as? Date) ?? Date.distantPast
-            return date1 > date2
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "folder")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+            
+            Text("기록된 파일이 없습니다")
+                .font(.title2)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
+            
+            Text("센서 데이터를 기록하면 여기에 파일이 표시됩니다.")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            Button("기록 시작하기") {
+                presentationMode.wrappedValue.dismiss()
+                // 메인 화면으로 돌아가서 기록 시작
+            }
+            .buttonStyle(.borderedProminent)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
     }
     
-    private func previewFile(_ url: URL) {
-        selectedFileURL = url
-        showingQuickLook = true
+    private var filesList: some View {
+        List {
+            ForEach(bluetoothViewModel.recordedFiles, id: \.absoluteString) { fileURL in
+                FileRowView(
+                    url: fileURL,
+                    onTap: {
+                        selectedFileURL = fileURL
+                        showingQuickLook = true
+                    },
+                    onShare: {
+                        shareFile(fileURL)
+                    }
+                )
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button("삭제", role: .destructive) {
+                        selectedFileURL = fileURL
+                        showingDeleteAlert = true
+                    }
+                    
+                    Button("공유") {
+                        shareFile(fileURL)
+                    }
+                    .tint(.blue)
+                }
+            }
+        }
+        .listStyle(PlainListStyle())
+        .refreshable {
+            bluetoothViewModel.refreshRecordedFiles()
+        }
     }
     
     private func shareFile(_ url: URL) {
@@ -121,153 +144,74 @@ struct RecordedFilesView: View {
         showingShareSheet = true
     }
     
-    private func openInFiles() {
-        // Try multiple approaches to open the recordings directory
-        
-        // Method 1: Try to open Files app with shareddocuments URL scheme
-        if let appName = Bundle.main.appDisplayName {
-            let filesURL = "shareddocuments://\(appName)"
-            if let url = URL(string: filesURL), UIApplication.shared.canOpenURL(url) {
-                UIApplication.shared.open(url) { success in
-                    if !success {
-                        // Fallback to method 2
-                        self.openFilesAppFallback()
-                    }
-                }
-                return
-            }
-        }
-        
-        // Method 2: Try to open Files app directly
-        let filesAppURL = "files://"
-        if let url = URL(string: filesAppURL), UIApplication.shared.canOpenURL(url) {
-            UIApplication.shared.open(url) { success in
-                if !success {
-                    // Fallback to method 3
-                    self.showFilesInstructions()
-                }
-            }
-        } else {
-            // Method 3: Show instructions as fallback
+    private func shareAllFiles() {
+        shareItems = bluetoothViewModel.recordedFiles
+        showingShareSheet = true
+    }
+    
+    private func deleteFile(_ url: URL) {
+        do {
+            try bluetoothViewModel.deleteFile(url)
+            
+            // 성공 피드백
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+            
+        } catch {
+            print("파일 삭제 실패: \(error)")
+            
+            // 실패 시 사용자에게 알림
             showFilesInstructions()
         }
     }
     
-    private func openFilesAppFallback() {
-        // Try alternative URL schemes for Files app
-        let alternativeURLs = [
-            "com.apple.DocumentsApp://",
-            "files://",
-        ]
-        
-        for urlString in alternativeURLs {
-            if let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) {
-                UIApplication.shared.open(url)
-                return
-            }
+    private func deleteAllFiles() {
+        do {
+            try bluetoothViewModel.deleteAllFiles()
+            
+            // 성공 피드백
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            
+        } catch {
+            print("모든 파일 삭제 실패: \(error)")
+            
+            // 실패 시 사용자에게 알림
+            showFilesInstructions()
         }
-        
-        // If all fails, show options dialog
-        showFileAccessOptions()
     }
     
-    private func showFileAccessOptions() {
+    // 파일 액세스 관련 안내를 표시하는 메서드
+    private func showFilesInstructions() {
+        guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.path else {
+            return
+        }
+        
         let alert = UIAlertController(
-            title: "Access Your Recordings",
-            message: "Choose how you'd like to access your recorded files:",
-            preferredStyle: .actionSheet
+            title: "파일 위치",
+            message: "기록된 파일은 다음 위치에 저장됩니다:\n\n\(documentsPath)\n\n파일 앱에서 직접 접근할 수도 있습니다.",
+            preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "📁 Open Files App", style: .default) { _ in
-            if let url = URL(string: "files://") {
-                UIApplication.shared.open(url)
-            } else {
-                self.showFilesInstructions()
+        alert.addAction(UIAlertAction(title: "파일 앱 열기", style: .default) { _ in
+            if let filesURL = URL(string: "shareddocuments://") {
+                UIApplication.shared.open(filesURL)
             }
-        })
-        
-        alert.addAction(UIAlertAction(title: "📋 Browse Files Here", style: .default) { _ in
-            self.showDocumentPicker()
         })
         
         alert.addAction(UIAlertAction(title: "❓ Show Instructions", style: .default) { _ in
             self.showFilesInstructions()
         })
         
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        
-        // For iPad, we need to set the source view
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-            if let popover = alert.popoverPresentationController {
-                popover.sourceView = rootViewController.view
-                popover.sourceRect = CGRect(x: rootViewController.view.bounds.midX, y: rootViewController.view.bounds.midY, width: 0, height: 0)
-                popover.permittedArrowDirections = []
-            }
-            rootViewController.present(alert, animated: true)
-        }
-    }
-    
-    private func showDocumentPicker() {
-        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder, .data])
-        documentPicker.allowsMultipleSelection = false
-        documentPicker.shouldShowFileExtensions = true
-        
-        // Try to start from the recordings directory
-        documentPicker.directoryURL = bluetoothKit.recordingsDirectory
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
         
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-            rootViewController.present(documentPicker, animated: true)
+           let window = windowScene.windows.first {
+            window.rootViewController?.present(alert, animated: true)
         }
-    }
-    
-    private func showFilesInstructions() {
-        let appName = Bundle.main.appDisplayName ?? "Personal"
-        
-        let alert = UIAlertController(
-            title: "Access Your Recordings",
-            message: """
-            📁 To access your recordings:
-            
-            🔍 Method 1 - Files App:
-            1. Open the "Files" app
-            2. Tap "On My iPhone/iPad"
-            3. Find "\(appName)"
-            4. Open "Documents" folder
-            
-            📤 Method 2 - Share:
-            Use the share buttons in this app to send files directly to other apps or cloud storage.
-            
-            💡 Tip: Your recordings are safely stored in the app's Documents folder and can be accessed anytime through this app.
-            """,
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "Open Files App", style: .default) { _ in
-            if let settingsUrl = URL(string: "files://") {
-                UIApplication.shared.open(settingsUrl)
-            }
-        })
-        
-        alert.addAction(UIAlertAction(title: "OK", style: .cancel))
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-            rootViewController.present(alert, animated: true)
-        }
-    }
-}
-
-// MARK: - Bundle Extension (Local)
-
-private extension Bundle {
-    var appDisplayName: String? {
-        return object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ??
-               object(forInfoDictionaryKey: "CFBundleName") as? String
     }
 }
 
 #Preview {
-    RecordedFilesView(bluetoothKit: BluetoothKit())
+    RecordedFilesView(bluetoothViewModel: BluetoothKitViewModel())
 } 

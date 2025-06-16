@@ -5,7 +5,7 @@ import BluetoothKit
 
 /// ViewModel을 사용한 깔끔한 배치 데이터 수집 뷰
 struct SimplifiedBatchDataCollectionView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothViewModel: BluetoothKitViewModel
     @StateObject private var viewModel: BatchDataConfigurationViewModel
     @FocusState private var isTextFieldFocused: Bool
     @State private var showStopMonitoringAlert = false
@@ -13,218 +13,182 @@ struct SimplifiedBatchDataCollectionView: View {
     // 주로 사용하는 센서들
     private let mainSensors: [SensorType] = [.eeg, .ppg, .accelerometer]
     
-    init(bluetoothKit: BluetoothKit) {
-        self.bluetoothKit = bluetoothKit
-        self._viewModel = StateObject(wrappedValue: BatchDataConfigurationViewModel(bluetoothKit: bluetoothKit))
+    init(bluetoothViewModel: BluetoothKitViewModel) {
+        self.bluetoothViewModel = bluetoothViewModel
+        self._viewModel = StateObject(wrappedValue: BatchDataConfigurationViewModel(bluetoothKit: bluetoothViewModel.bluetoothKit))
     }
     
     var body: some View {
         VStack(spacing: 16) {
             // 헤더
-            headerView
-            
-            // 수집 모드 선택
-            collectionModeSection
-            
-            // 수집 설정
-            if viewModel.selectedCollectionMode == .sampleCount {
-                sampleCountConfiguration
-            } else {
-                durationConfiguration
+            HStack {
+                Image(systemName: "chart.bar.doc.horizontal")
+                    .font(.system(size: 20))
+                    .foregroundColor(.orange)
+                
+                Text("배치 데이터 수집")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                configurationToggle
             }
             
-            // 센서 선택
-            sensorSelectionSection
+            Divider()
             
-            // 컨트롤 버튼
-            controlButtonsSection
+            if viewModel.isConfigured {
+                configuredContent
+            } else {
+                unconfiguredContent
+            }
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.gray.opacity(0.1))
-                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
-        )
-        .onTapGesture {
-            isTextFieldFocused = false
-        }
-        .alert("모니터링 중지 확인", isPresented: $showStopMonitoringAlert) {
-            Button("기록 및 모니터링 중지", role: .destructive) {
-                // 기록 중지 후 모니터링 중지
-                if bluetoothKit.isRecording {
-                    bluetoothKit.stopRecording()
-                }
-                viewModel.stopMonitoring()
-            }
-            Button("취소", role: .cancel) { }
+        .background(cardBackground)
+        .alert("기록 중 설정 변경", isPresented: $viewModel.showRecordingChangeWarning) {
+            alertButtons
         } message: {
-            Text("데이터 기록이 진행 중입니다.\n모니터링을 중지하면 기록도 함께 중지됩니다.")
+            Text("현재 기록 중입니다. 설정을 변경하려면 기록을 중지해야 합니다.")
         }
     }
     
     // MARK: - View Components
     
-    private var headerView: some View {
-        HStack {
-            Image(systemName: "square.stack.3d.down.right.fill")
-                .font(.system(size: 20))
-                .foregroundColor(.blue)
+    private var configurationToggle: some View {
+        Button(action: {
+            if viewModel.isConfigured {
+                viewModel.stopMonitoring()
+            } else {
+                viewModel.startMonitoring()
+            }
+        }) {
+            HStack(spacing: 4) {
+                Image(systemName: viewModel.isConfigured ? "stop.circle.fill" : "play.circle.fill")
+                    .font(.caption)
+                Text(viewModel.isConfigured ? "중지" : "시작")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(viewModel.isConfigured ? Color.red : Color.green)
+            )
+            .foregroundColor(.white)
+        }
+        .disabled(!bluetoothViewModel.isConnected)
+    }
+    
+    @ViewBuilder
+    private var configuredContent: some View {
+        VStack(spacing: 12) {
+            // 선택된 센서 표시
+            sensorSelectionDisplay
             
-            Text("데이터 수집 설정")
-                .font(.headline)
-                .fontWeight(.semibold)
+            // 수집 모드와 설정 표시
+            collectionModeDisplay
             
-            Spacer()
-            
-            if bluetoothKit.isRecording {
-                Image(systemName: "record.circle.fill")
-                    .foregroundColor(.red)
-                    .symbolEffect(.pulse)
+            // 배치 수집 통계 (실제 데이터가 들어오면 표시)
+            if bluetoothViewModel.latestEEGReading != nil ||
+               bluetoothViewModel.latestPPGReading != nil ||
+               bluetoothViewModel.latestAccelerometerReading != nil {
+                realTimeDataIndicator
             }
         }
     }
     
-    private var collectionModeSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    @ViewBuilder
+    private var unconfiguredContent: some View {
+        VStack(spacing: 16) {
+            // 센서 선택
+            sensorSelectionSection
+            
+            // 수집 모드 선택
+            collectionModeSection
+            
+            // 각 센서별 설정
+            ForEach(Array(SensorType.allCases.filter { viewModel.selectedSensors.contains($0) }), id: \.self) { sensor in
+                sensorConfigurationSection(for: sensor)
+            }
+        }
+    }
+    
+    private var sensorSelectionDisplay: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("활성 센서")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+            
+            HStack {
+                ForEach(Array(viewModel.selectedSensors), id: \.self) { sensor in
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(sensorColor(for: sensor))
+                            .frame(width: 8, height: 8)
+                        
+                        Text(sensor.displayName)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(sensorColor(for: sensor).opacity(0.2))
+                    )
+                }
+                Spacer()
+            }
+        }
+    }
+    
+    private var collectionModeDisplay: some View {
+        HStack {
             Text("수집 모드")
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
             
-            Picker("수집 모드", selection: $viewModel.selectedCollectionMode) {
-                ForEach(BatchDataConfigurationManager.CollectionMode.allCases, id: \.self) { mode in
-                    Text(mode.displayName).tag(mode)
-                }
-            }
-            .pickerStyle(SegmentedPickerStyle())
-            .disabled(viewModel.isMonitoringActive)
-        }
-    }
-    
-    private var configurationSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if viewModel.selectedCollectionMode == .sampleCount {
-                sampleCountConfiguration
-            } else {
-                durationConfiguration
-            }
-        }
-    }
-    
-    private var sampleCountConfiguration: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("센서별 목표 샘플 수")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                Spacer()
-                
-                if viewModel.isMonitoringActive || bluetoothKit.isRecording {
-                    HStack(spacing: 4) {
-                        Image(systemName: bluetoothKit.isRecording ? "record.circle.fill" : "eye.fill")
-                            .foregroundColor(bluetoothKit.isRecording ? .red : .orange)
-                            .font(.caption)
-                        Text(bluetoothKit.isRecording ? "기록 중" : "모니터링 중")
-                            .font(.caption)
-                            .foregroundColor(bluetoothKit.isRecording ? .red : .orange)
-                            .fontWeight(.medium)
-                    }
-                }
-            }
+            Spacer()
             
-            ForEach(mainSensors, id: \.self) { sensor in
-                sensorSampleCountRow(for: sensor)
-            }
+            Text(viewModel.selectedCollectionMode.displayName)
+                .font(.caption)
+                .fontWeight(.medium)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.blue.opacity(0.2))
+                )
         }
     }
     
-    private var durationConfiguration: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("센서별 수집 시간")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                Spacer()
-                
-                if viewModel.isMonitoringActive || bluetoothKit.isRecording {
-                    HStack(spacing: 4) {
-                        Image(systemName: bluetoothKit.isRecording ? "record.circle.fill" : "eye.fill")
-                            .foregroundColor(bluetoothKit.isRecording ? .red : .orange)
-                            .font(.caption)
-                        Text(bluetoothKit.isRecording ? "기록 중" : "모니터링 중")
-                            .font(.caption)
-                            .foregroundColor(bluetoothKit.isRecording ? .red : .orange)
-                            .fontWeight(.medium)
-                    }
-                }
-            }
-            
-            ForEach(mainSensors, id: \.self) { sensor in
-                sensorDurationRow(for: sensor)
-            }
-        }
-    }
-    
-    private func sensorSampleCountRow(for sensor: SensorType) -> some View {
+    private var realTimeDataIndicator: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("\(sensor.emoji) \(sensor.displayName)")
+            Text("실시간 데이터")
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundColor(colorForSensor(sensor))
+                .foregroundColor(.secondary)
             
-            HStack {
-                TextField("예: \(defaultSampleCount(for: sensor))", text: sampleCountBinding(for: sensor))
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.numberPad)
-                    .focused($isTextFieldFocused)
-                    .disabled(viewModel.isMonitoringActive || bluetoothKit.isRecording)
-                    .opacity(viewModel.isMonitoringActive || bluetoothKit.isRecording ? 0.6 : 1.0)
-                    .onTapGesture {
-                        if viewModel.isMonitoringActive || bluetoothKit.isRecording {
-                            // 텍스트 필드 비활성화 상태에서는 포커스 해제만
-                            isTextFieldFocused = false
-                        }
+            HStack(spacing: 16) {
+                ForEach(Array(viewModel.selectedSensors), id: \.self) { sensor in
+                    let hasData = hasRecentData(for: sensor)
+                    
+                    VStack(spacing: 4) {
+                        Circle()
+                            .fill(hasData ? sensorColor(for: sensor) : Color.gray.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                            .symbolEffect(.pulse, isActive: hasData)
+                        
+                        Text(sensor.displayName)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(hasData ? sensorColor(for: sensor) : .secondary)
                     }
-                    .onChange(of: sampleCountBinding(for: sensor).wrappedValue) { newValue in
-                        _ = viewModel.validateSampleCount(newValue, for: sensor)
-                    }
-                
-                Text("샘플")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-    
-    private func sensorDurationRow(for sensor: SensorType) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("\(sensor.emoji) \(sensor.displayName)")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(colorForSensor(sensor))
-            
-            HStack {
-                TextField("예: 1", text: durationBinding(for: sensor))
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.numberPad)
-                    .focused($isTextFieldFocused)
-                    .disabled(viewModel.isMonitoringActive || bluetoothKit.isRecording)
-                    .opacity(viewModel.isMonitoringActive || bluetoothKit.isRecording ? 0.6 : 1.0)
-                    .onTapGesture {
-                        if viewModel.isMonitoringActive || bluetoothKit.isRecording {
-                            // 텍스트 필드 비활성화 상태에서는 포커스 해제만
-                            isTextFieldFocused = false
-                        }
-                    }
-                    .onChange(of: durationBinding(for: sensor).wrappedValue) { newValue in
-                        _ = viewModel.validateDuration(newValue, for: sensor)
-                    }
-                
-                Text("초")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                }
+                Spacer()
             }
         }
     }
@@ -232,188 +196,180 @@ struct SimplifiedBatchDataCollectionView: View {
     private var sensorSelectionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("센서 선택")
-                .font(.headline)
+                .font(.subheadline)
+                .fontWeight(.medium)
             
-            HStack(spacing: 8) {
-                ForEach(mainSensors, id: \.self) { sensor in
-                    SensorToggleButton(
-                        sensor: sensor,
-                        isSelected: viewModel.isSensorSelected(sensor),
-                        isDisabled: viewModel.isMonitoringActive
-                    ) {
-                        if viewModel.isMonitoringActive {
-                            // 모니터링 중에는 경고 팝업 표시
-                            viewModel.updateSensorSelection([sensor])
-                        } else {
-                            // 모니터링 중이 아닐 때는 즉시 변경
-                            var newSelection = viewModel.selectedSensors
-                            if viewModel.isSensorSelected(sensor) {
-                                newSelection.remove(sensor)
-                            } else {
-                                newSelection.insert(sensor)
-                            }
-                            viewModel.updateSensorSelection(newSelection)
-                        }
-                    }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
+                ForEach(SensorType.allCases, id: \.self) { sensor in
+                    sensorToggle(for: sensor)
                 }
             }
         }
     }
     
-    private var controlButtonsSection: some View {
-        VStack(spacing: 12) {
-            // 모니터링 컨트롤
-            HStack(spacing: 12) {
-                if viewModel.isMonitoringActive {
-                    Button("모니터링 중지") {
-                        // 데이터 기록 중이라면 경고 팝업 표시
-                        if bluetoothKit.isRecording {
-                            showStopMonitoringAlert = true
-                        } else {
-                            viewModel.stopMonitoring()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                } else {
-                    Button("모니터링 시작") {
-                        viewModel.startMonitoring()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.selectedSensors.isEmpty)
+    private func sensorToggle(for sensor: SensorType) -> some View {
+        Button(action: {
+            var newSelection = viewModel.selectedSensors
+            if newSelection.contains(sensor) {
+                newSelection.remove(sensor)
+            } else {
+                newSelection.insert(sensor)
+            }
+            viewModel.updateSensorSelection(newSelection)
+        }) {
+            HStack {
+                Image(systemName: viewModel.selectedSensors.contains(sensor) ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(viewModel.selectedSensors.contains(sensor) ? sensorColor(for: sensor) : .gray)
+                
+                Text(sensor.displayName)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(viewModel.selectedSensors.contains(sensor) ? sensorColor(for: sensor).opacity(0.1) : Color.gray.opacity(0.1))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private var collectionModeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("수집 모드")
+                .font(.subheadline)
+                .fontWeight(.medium)
+            
+            Picker("", selection: $viewModel.selectedCollectionMode) {
+                ForEach(BatchDataConfigurationViewModel.CollectionMode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(mode)
                 }
+            }
+            .pickerStyle(SegmentedPickerStyle())
+        }
+    }
+    
+    private func sensorConfigurationSection(for sensor: SensorType) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: sensorIcon(for: sensor))
+                    .foregroundColor(sensorColor(for: sensor))
+                
+                Text(sensor.displayName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Spacer()
+            }
+            
+            switch viewModel.selectedCollectionMode {
+            case .sampleCount:
+                sampleCountConfiguration(for: sensor)
+            case .duration:
+                durationConfiguration(for: sensor)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(sensorColor(for: sensor).opacity(0.1))
+        )
+    }
+    
+    private func sampleCountConfiguration(for sensor: SensorType) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("샘플 수")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 
                 Spacer()
                 
-                if viewModel.showValidationError {
-                    Text(viewModel.validationMessage)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
+                Text("\(viewModel.getSampleCount(for: sensor))개")
+                    .font(.caption)
+                    .fontWeight(.medium)
             }
             
-            // 기록 컨트롤 (실질적인 모니터링이 활성화된 경우에만 표시)
-            if viewModel.isMonitoringActive {
-                Divider()
+            let expectedTime = viewModel.getExpectedTime(for: sensor, sampleCount: viewModel.getSampleCount(for: sensor))
+            Text("예상 시간: \(String(format: "%.1f", expectedTime))초")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private func durationConfiguration(for sensor: SensorType) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("시간")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 
-                HStack(spacing: 12) {
-                    Button(bluetoothKit.isRecording ? "기록 중지" : "기록 시작") {
-                        if bluetoothKit.isRecording {
-                            bluetoothKit.stopRecording()
-                        } else {
-                            bluetoothKit.startRecording()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(bluetoothKit.isRecording ? .red : .green)
-                    .frame(maxWidth: .infinity)
-                    
-                    if bluetoothKit.isRecording {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Image(systemName: "record.circle.fill")
-                                    .foregroundColor(.red)
-                                    .symbolEffect(.pulse)
-                                Text("기록 중")
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.red)
-                            }
-                            Text("선택된 센서 데이터 저장 중")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
+                Spacer()
                 
-                if !bluetoothKit.isRecording && viewModel.isMonitoringActive {
-                    Text("💡 센서 모니터링 중. 기록 시작 버튼을 눌러 데이터를 저장하세요.")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 4)
-                }
+                Text("\(viewModel.getDuration(for: sensor))초")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            
+            let expectedSamples = viewModel.getExpectedSamples(for: sensor, duration: viewModel.getDuration(for: sensor))
+            Text("예상 샘플: \(expectedSamples)개")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(Color.gray.opacity(0.1))
+            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+    }
+    
+    private var alertButtons: some View {
+        Group {
+            Button("기록 중지 후 변경") {
+                viewModel.confirmSensorChangeWithRecordingStop()
+            }
+            
+            Button("취소", role: .cancel) {
+                viewModel.cancelSensorChange()
             }
         }
     }
     
     // MARK: - Helper Methods
     
-    private func colorForSensor(_ sensor: SensorType) -> Color {
-        switch sensor.color {
-        case "blue": return .blue
-        case "red": return .red
-        case "green": return .green
-        case "orange": return .orange
-        default: return .primary
+    private func sensorColor(for sensor: SensorType) -> Color {
+        switch sensor {
+        case .eeg: return .purple
+        case .ppg: return .red
+        case .accelerometer: return .blue
+        case .battery: return .green
         }
     }
     
-    /// ViewModel의 기본값을 사용하여 중복 제거
-    private func defaultSampleCount(for sensor: SensorType) -> Int {
-        return viewModel.getSampleCount(for: sensor)
-    }
-    
-    /// Generic한 바인딩을 생성하여 switch문 중복 제거
-    private func sampleCountBinding(for sensor: SensorType) -> Binding<String> {
-        return Binding<String>(
-            get: { 
-                self.viewModel.getSampleCountText(for: sensor)
-            },
-            set: { newValue in
-                self.viewModel.setSampleCountText(newValue, for: sensor)
-            }
-        )
-    }
-    
-    /// Generic한 바인딩을 생성하여 switch문 중복 제거
-    private func durationBinding(for sensor: SensorType) -> Binding<String> {
-        return Binding<String>(
-            get: { 
-                self.viewModel.getDurationText(for: sensor)
-            },
-            set: { newValue in
-                self.viewModel.setDurationText(newValue, for: sensor)
-            }
-        )
-    }
-}
-
-// MARK: - Helper Views
-
-private struct SensorToggleButton: View {
-    let sensor: SensorType
-    let isSelected: Bool
-    let isDisabled: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(isSelected ? .green : .gray)
-                    .font(.system(size: 14))
-                
-                Text(sensor.displayName)
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
-            )
+    private func sensorIcon(for sensor: SensorType) -> String {
+        switch sensor {
+        case .eeg: return "brain.head.profile"
+        case .ppg: return "heart.fill"
+        case .accelerometer: return "move.3d"
+        case .battery: return "battery.75"
         }
-        .buttonStyle(PlainButtonStyle())
-        .disabled(isDisabled)
-        .opacity(isDisabled ? 0.5 : 1.0)
+    }
+    
+    private func hasRecentData(for sensor: SensorType) -> Bool {
+        switch sensor {
+        case .eeg: return bluetoothViewModel.latestEEGReading != nil
+        case .ppg: return bluetoothViewModel.latestPPGReading != nil
+        case .accelerometer: return bluetoothViewModel.latestAccelerometerReading != nil
+        case .battery: return bluetoothViewModel.latestBatteryReading != nil
+        }
     }
 }
 
 #Preview {
-    SimplifiedBatchDataCollectionView(bluetoothKit: BluetoothKit())
+    SimplifiedBatchDataCollectionView(bluetoothViewModel: BluetoothKitViewModel())
 } 

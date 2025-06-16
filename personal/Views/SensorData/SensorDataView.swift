@@ -4,30 +4,30 @@ import BluetoothKit
 // MARK: - 센서 데이터 뷰
 
 struct SensorDataView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothViewModel: BluetoothKitViewModel
     
     var body: some View {
         VStack(spacing: 16) {
             // EEG 데이터 카드
-            if let eegReading = bluetoothKit.latestEEGReading {
+            if let eegReading = bluetoothViewModel.latestEEGReading {
                 EEGDataCard(reading: eegReading)
                     .frame(maxWidth: .infinity)
             }
             
             // PPG 데이터 카드
-            if let ppgReading = bluetoothKit.latestPPGReading {
+            if let ppgReading = bluetoothViewModel.latestPPGReading {
                 PPGDataCard(reading: ppgReading)
                     .frame(maxWidth: .infinity)
             }
             
             // 가속도계 데이터 카드
-            if let accelReading = bluetoothKit.latestAccelerometerReading {
-                AccelerometerDataCard(reading: accelReading, bluetoothKit: bluetoothKit)
+            if let accelReading = bluetoothViewModel.latestAccelerometerReading {
+                AccelerometerDataCard(reading: accelReading)
                     .frame(maxWidth: .infinity)
             }
             
             // 배터리 데이터 카드
-            if let batteryReading = bluetoothKit.latestBatteryReading {
+            if let batteryReading = bluetoothViewModel.latestBatteryReading {
                 BatteryDataCard(reading: batteryReading)
                     .frame(maxWidth: .infinity)
             }
@@ -37,5 +37,5 @@ struct SensorDataView: View {
 }
 
 #Preview {
-    SensorDataView(bluetoothKit: BluetoothKit())
+    SensorDataView(bluetoothViewModel: BluetoothKitViewModel())
 } 

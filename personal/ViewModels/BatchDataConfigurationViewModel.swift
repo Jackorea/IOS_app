@@ -15,31 +15,21 @@ class BatchDataConfigurationViewModel: ObservableObject {
     // 경고 팝업 관련 상태 (UI에서 바인딩 가능하도록 @Published로 설정)
     @Published var showRecordingChangeWarning: Bool = false
     @Published var pendingSensorSelection: Set<SensorType>? = nil
-    @Published var pendingConfigurationChange: BatchDataConfigurationManager.ConfigurationChangeType? = nil
+    @Published var pendingConfigurationChange: BatchDataConfigurationManager.PendingConfigurationChange? = nil
+    
+    // MARK: - SDK State Properties (델리게이트를 통해 동기화)
+    
+    @Published var selectedCollectionMode: BatchDataConfigurationManager.CollectionMode = .sampleCount
+    @Published var selectedSensors: Set<SensorType> = [.eeg, .ppg, .accelerometer]
+    @Published var isMonitoringActive: Bool = false
     
     // MARK: - Business Logic Manager
     
     private let configurationManager: BatchDataConfigurationManager
-    private var cancellables = Set<AnyCancellable>()
     
-    // MARK: - Delegation Properties (Manager의 Published 속성들을 노출)
-    
-    var selectedCollectionMode: BatchDataConfigurationManager.CollectionMode {
-        get { configurationManager.selectedCollectionMode }
-        set { configurationManager.selectedCollectionMode = newValue }
-    }
-    
-    var selectedSensors: Set<SensorType> {
-        get { configurationManager.selectedSensors }
-        set { configurationManager.selectedSensors = newValue }
-    }
+    // MARK: - Computed Properties
     
     var isConfigured: Bool {
-        configurationManager.isMonitoringActive
-    }
-    
-    // 모니터링 상태 추가 (이전 버전과의 호환성)
-    var isMonitoringActive: Bool {
         configurationManager.isMonitoringActive
     }
     
@@ -47,7 +37,10 @@ class BatchDataConfigurationViewModel: ObservableObject {
     
     init(bluetoothKit: BluetoothKit) {
         self.configurationManager = BatchDataConfigurationManager(bluetoothKit: bluetoothKit)
-        setupBindings()
+        self.configurationManager.delegate = self
+        
+        // 현재 상태 동기화
+        syncFromManager()
     }
     
     // MARK: - Configuration Methods (Manager에 위임)
@@ -83,21 +76,28 @@ class BatchDataConfigurationViewModel: ObservableObject {
     /// 사용자가 경고 팝업에서 "기록 중지 후 변경"을 선택했을 때 호출
     func confirmSensorChangeWithRecordingStop() {
         configurationManager.confirmSensorChangeWithRecordingStop()
-        // ViewModel 상태는 Manager의 바인딩을 통해 자동으로 업데이트됩니다
+        // ViewModel 상태도 즉시 업데이트
+        showRecordingChangeWarning = false
+        pendingSensorSelection = nil
+        pendingConfigurationChange = nil
     }
     
     /// 사용자가 경고 팝업에서 "취소"를 선택했을 때 호출
     func cancelSensorChange() {
         configurationManager.cancelSensorChange()
-        // ViewModel 상태는 Manager의 바인딩을 통해 자동으로 업데이트됩니다
+        // ViewModel 상태도 즉시 업데이트
+        showRecordingChangeWarning = false
+        pendingSensorSelection = nil
+        pendingConfigurationChange = nil
     }
     
     /// 기록 중 텍스트 필드 편집 시도 시 호출
-    /// 더 이상 필요하지 않음 - Manager에서 자동으로 처리됩니다
-    @available(*, deprecated, message: "설정 변경은 Manager에서 자동으로 처리됩니다")
     func handleTextFieldEditAttemptDuringRecording() {
-        // 이 메서드는 더 이상 필요하지 않습니다.
-        // 설정 변경 시 Manager가 자동으로 기록 상태를 확인하고 경고를 표시합니다.
+        if configurationManager.isMonitoringActive {
+            // 일반적인 설정 변경 경고 표시
+            pendingConfigurationChange = nil // 구체적인 변경사항은 없음
+            showRecordingChangeWarning = true
+        }
     }
     
     // MARK: - Sensor Configuration Access (Manager에 위임)
@@ -234,51 +234,49 @@ class BatchDataConfigurationViewModel: ObservableObject {
     
     // MARK: - Private Methods
     
-    /// Manager의 Published 속성들과 UI 바인딩 설정
-    private func setupBindings() {
-        // Manager의 상태 변경을 UI에 반영
-        configurationManager.$selectedCollectionMode
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-        
-        configurationManager.$selectedSensors
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-        
-        configurationManager.$isMonitoringActive
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-        
-        // 경고 팝업 상태 바인딩
-        configurationManager.$showRecordingChangeWarning
-            .sink { [weak self] newValue in
-                self?.showRecordingChangeWarning = newValue
-            }
-            .store(in: &cancellables)
-        
-        configurationManager.$pendingSensorSelection
-            .sink { [weak self] newValue in
-                self?.pendingSensorSelection = newValue
-            }
-            .store(in: &cancellables)
-        
-        configurationManager.$pendingConfigurationChange
-            .sink { [weak self] newValue in
-                self?.pendingConfigurationChange = newValue
-            }
-            .store(in: &cancellables)
+    /// Manager의 현재 상태를 UI에 동기화
+    private func syncFromManager() {
+        selectedCollectionMode = configurationManager.selectedCollectionMode
+        selectedSensors = configurationManager.selectedSensors
+        isMonitoringActive = configurationManager.isMonitoringActive
+        showRecordingChangeWarning = configurationManager.showRecordingChangeWarning
+        pendingSensorSelection = configurationManager.pendingSensorSelection
+        pendingConfigurationChange = configurationManager.pendingConfigurationChange
     }
     
     /// 유효성 검사 결과를 UI 상태에 반영
     private func updateValidationState(_ result: BatchDataConfigurationManager.ValidationResult) {
         showValidationError = !result.isValid
         validationMessage = result.message ?? ""
+    }
+}
+
+// MARK: - BatchDataConfigurationManagerDelegate
+
+extension BatchDataConfigurationViewModel: BatchDataConfigurationManagerDelegate {
+    
+    func configurationManager(_ manager: BatchDataConfigurationManager, didUpdateCollectionMode mode: BatchDataConfigurationManager.CollectionMode) {
+        selectedCollectionMode = mode
+    }
+    
+    func configurationManager(_ manager: BatchDataConfigurationManager, didUpdateSelectedSensors sensors: Set<SensorType>) {
+        selectedSensors = sensors
+    }
+    
+    func configurationManager(_ manager: BatchDataConfigurationManager, didUpdateMonitoringState isActive: Bool) {
+        isMonitoringActive = isActive
+    }
+    
+    func configurationManager(_ manager: BatchDataConfigurationManager, didUpdateRecordingChangeWarning show: Bool) {
+        showRecordingChangeWarning = show
+    }
+    
+    func configurationManager(_ manager: BatchDataConfigurationManager, didUpdatePendingSensorSelection sensors: Set<SensorType>?) {
+        pendingSensorSelection = sensors
+    }
+    
+    func configurationManager(_ manager: BatchDataConfigurationManager, didUpdatePendingConfigurationChange change: BatchDataConfigurationManager.PendingConfigurationChange?) {
+        pendingConfigurationChange = change
     }
 }
 
