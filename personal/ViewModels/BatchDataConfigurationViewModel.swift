@@ -83,28 +83,21 @@ class BatchDataConfigurationViewModel: ObservableObject {
     /// 사용자가 경고 팝업에서 "기록 중지 후 변경"을 선택했을 때 호출
     func confirmSensorChangeWithRecordingStop() {
         configurationManager.confirmSensorChangeWithRecordingStop()
-        // ViewModel 상태도 즉시 업데이트
-        showRecordingChangeWarning = false
-        pendingSensorSelection = nil
-        pendingConfigurationChange = nil
+        // ViewModel 상태는 Manager의 바인딩을 통해 자동으로 업데이트됩니다
     }
     
     /// 사용자가 경고 팝업에서 "취소"를 선택했을 때 호출
     func cancelSensorChange() {
         configurationManager.cancelSensorChange()
-        // ViewModel 상태도 즉시 업데이트
-        showRecordingChangeWarning = false
-        pendingSensorSelection = nil
-        pendingConfigurationChange = nil
+        // ViewModel 상태는 Manager의 바인딩을 통해 자동으로 업데이트됩니다
     }
     
     /// 기록 중 텍스트 필드 편집 시도 시 호출
+    /// 더 이상 필요하지 않음 - Manager에서 자동으로 처리됩니다
+    @available(*, deprecated, message: "설정 변경은 Manager에서 자동으로 처리됩니다")
     func handleTextFieldEditAttemptDuringRecording() {
-        if configurationManager.isMonitoringActive {
-            // 일반적인 설정 변경 경고 표시
-            pendingConfigurationChange = nil // 구체적인 변경사항은 없음
-            showRecordingChangeWarning = true
-        }
+        // 이 메서드는 더 이상 필요하지 않습니다.
+        // 설정 변경 시 Manager가 자동으로 기록 상태를 확인하고 경고를 표시합니다.
     }
     
     // MARK: - Sensor Configuration Access (Manager에 위임)

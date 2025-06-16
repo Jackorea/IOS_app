@@ -183,11 +183,7 @@ struct SimplifiedBatchDataCollectionView: View {
                     .opacity(viewModel.isMonitoringActive || bluetoothKit.isRecording ? 0.6 : 1.0)
                     .onTapGesture {
                         if viewModel.isMonitoringActive || bluetoothKit.isRecording {
-                            if bluetoothKit.isRecording {
-                                viewModel.handleTextFieldEditAttemptDuringRecording()
-                            } else {
-                                viewModel.showRecordingChangeWarning = true
-                            }
+                            // 텍스트 필드 비활성화 상태에서는 포커스 해제만
                             isTextFieldFocused = false
                         }
                     }
@@ -218,11 +214,7 @@ struct SimplifiedBatchDataCollectionView: View {
                     .opacity(viewModel.isMonitoringActive || bluetoothKit.isRecording ? 0.6 : 1.0)
                     .onTapGesture {
                         if viewModel.isMonitoringActive || bluetoothKit.isRecording {
-                            if bluetoothKit.isRecording {
-                                viewModel.handleTextFieldEditAttemptDuringRecording()
-                            } else {
-                                viewModel.showRecordingChangeWarning = true
-                            }
+                            // 텍스트 필드 비활성화 상태에서는 포커스 해제만
                             isTextFieldFocused = false
                         }
                     }
