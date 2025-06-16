@@ -6,9 +6,15 @@ struct AccelerometerDataCard: View {
     
     // Computed property to calculate magnitude - this avoids complex inline expressions
     private var magnitude: Double {
-        let xSquared = Double(reading.x * reading.x)
-        let ySquared = Double(reading.y * reading.y) 
-        let zSquared = Double(reading.z * reading.z)
+        // Int16을 먼저 Double로 변환하여 오버플로우 방지
+        let x = Double(reading.x)
+        let y = Double(reading.y)
+        let z = Double(reading.z)
+        
+        let xSquared = x * x
+        let ySquared = y * y
+        let zSquared = z * z
+        
         return sqrt(xSquared + ySquared + zSquared)
     }
     

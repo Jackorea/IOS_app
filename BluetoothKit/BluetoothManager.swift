@@ -145,7 +145,7 @@ internal class BluetoothManager: NSObject, @unchecked Sendable {
     public func enableMonitoring() {
         isMonitoringActive = true
         configureSensorNotifications()
-        log("모니터링 활성화됨 (선택된 센서만)")
+        log("모니터링 활성화됨 (선택된 센서만) - isMonitoringActive: \(isMonitoringActive)")
     }
     
     /// 센서 모니터링을 비활성화합니다.
@@ -157,7 +157,7 @@ internal class BluetoothManager: NSObject, @unchecked Sendable {
             setNotifyValue(false, for: sensorType)
         }
         
-        log("모니터링 비활성화됨 (배터리 센서 제외)")
+        log("모니터링 비활성화됨 (배터리 센서 제외) - isMonitoringActive: \(isMonitoringActive)")
     }
     
     /// 선택된 센서 타입을 설정합니다.
@@ -256,7 +256,14 @@ internal class BluetoothManager: NSObject, @unchecked Sendable {
     private func processSensorData(for uuid: CBUUID, data: Data) throws {
         switch uuid {
         case SensorUUID.eegNotifyChar:
-            guard isMonitoringActive && selectedSensorTypes.contains(.eeg) else { return }
+            if !isMonitoringActive {
+                log("EEG 데이터 무시됨: 모니터링 비활성화 상태")
+                return
+            }
+            if !selectedSensorTypes.contains(.eeg) {
+                log("EEG 데이터 무시됨: 센서 선택 안됨")
+                return
+            }
             let readings = try dataParser.parseEEGData(data)
             readings.forEach { reading in
                 notifySensorData(reading) { [weak self] in
@@ -265,7 +272,14 @@ internal class BluetoothManager: NSObject, @unchecked Sendable {
             }
             
         case SensorUUID.ppgChar:
-            guard isMonitoringActive && selectedSensorTypes.contains(.ppg) else { return }
+            if !isMonitoringActive {
+                log("PPG 데이터 무시됨: 모니터링 비활성화 상태")
+                return
+            }
+            if !selectedSensorTypes.contains(.ppg) {
+                log("PPG 데이터 무시됨: 센서 선택 안됨")
+                return
+            }
             let readings = try dataParser.parsePPGData(data)
             readings.forEach { reading in
                 notifySensorData(reading) { [weak self] in
@@ -274,7 +288,14 @@ internal class BluetoothManager: NSObject, @unchecked Sendable {
             }
             
         case SensorUUID.accelChar:
-            guard isMonitoringActive && selectedSensorTypes.contains(.accelerometer) else { return }
+            if !isMonitoringActive {
+                log("가속도계 데이터 무시됨: 모니터링 비활성화 상태")
+                return
+            }
+            if !selectedSensorTypes.contains(.accelerometer) {
+                log("가속도계 데이터 무시됨: 센서 선택 안됨")
+                return
+            }
             let readings = try dataParser.parseAccelerometerData(data)
             readings.forEach { reading in
                 notifySensorData(reading) { [weak self] in
