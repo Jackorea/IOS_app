@@ -48,39 +48,6 @@ struct SimplifiedBatchDataCollectionView: View {
         .onTapGesture {
             isTextFieldFocused = false
         }
-        .alert("센서 선택 변경", isPresented: $viewModel.showRecordingChangeWarning) {
-            Button("모니터링 중지 후 변경") {
-                viewModel.confirmSensorChangeWithRecordingStop()
-            }
-            Button("취소", role: .cancel) {
-                viewModel.cancelSensorChange()
-            }
-        } message: {
-            Text("모니터링 중에는 센서 선택을 변경할 수 없습니다. 모니터링을 중지하시겠습니까?")
-        }
-        .alert("설정 변경 제한", isPresented: $viewModel.showRecordingChangeWarning) {
-            if bluetoothKit.isRecording {
-                Button("기록 중지 후 변경", role: .destructive) {
-                    viewModel.confirmSensorChangeWithRecordingStop()
-                }
-                Button("취소", role: .cancel) {
-                    viewModel.cancelSensorChange()
-                }
-            } else {
-                Button("모니터링 중지 후 변경", role: .destructive) {
-                    viewModel.stopMonitoring()
-                }
-                Button("취소", role: .cancel) {
-                    viewModel.cancelSensorChange()
-                }
-            }
-        } message: {
-            if bluetoothKit.isRecording {
-                Text("기록 중에는 센서 설정을 변경할 수 없습니다.\n기록을 중지하고 설정을 변경하시겠습니까?")
-            } else {
-                Text("모니터링 중에는 센서 설정을 변경할 수 없습니다.\n모니터링을 중지하고 설정을 변경하시겠습니까?")
-            }
-        }
         .alert("모니터링 중지 확인", isPresented: $showStopMonitoringAlert) {
             Button("기록 및 모니터링 중지", role: .destructive) {
                 // 기록 중지 후 모니터링 중지
