@@ -129,7 +129,6 @@ internal class DataRecorder: @unchecked Sendable {
     /// - Parameter selectedSensors: 기록할 센서 타입들의 집합
     public func updateSelectedSensors(_ selectedSensors: Set<SensorType>) {
         selectedSensorTypes = selectedSensors
-        print("📂 DataRecorder: 선택된 센서 업데이트 - \(selectedSensors.map { sensorTypeToString($0) }.joined(separator: ", "))")
     }
     
     /// 센서 타입을 문자열로 변환하는 헬퍼 메서드

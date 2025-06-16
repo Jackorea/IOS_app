@@ -48,6 +48,16 @@ struct SimplifiedBatchDataCollectionView: View {
         .onTapGesture {
             isTextFieldFocused = false
         }
+        .alert("센서 선택 변경", isPresented: $viewModel.showRecordingChangeWarning) {
+            Button("모니터링 중지 후 변경") {
+                viewModel.confirmSensorChangeWithRecordingStop()
+            }
+            Button("취소", role: .cancel) {
+                viewModel.cancelSensorChange()
+            }
+        } message: {
+            Text("모니터링 중에는 센서 선택을 변경할 수 없습니다. 모니터링을 중지하시겠습니까?")
+        }
         .alert("설정 변경 제한", isPresented: $viewModel.showRecordingChangeWarning) {
             if bluetoothKit.isRecording {
                 Button("기록 중지 후 변경", role: .destructive) {
@@ -114,27 +124,13 @@ struct SimplifiedBatchDataCollectionView: View {
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
             
-            Picker("수집 모드", selection: Binding(
-                get: { viewModel.selectedCollectionMode },
-                set: { newMode in
-                    if isEffectivelyMonitoring || bluetoothKit.isRecording {
-                        if bluetoothKit.isRecording {
-                            viewModel.handleTextFieldEditAttemptDuringRecording()
-                        } else {
-                            viewModel.showRecordingChangeWarning = true
-                        }
-                    } else {
-                        viewModel.updateCollectionMode(newMode)
-                    }
+            Picker("수집 모드", selection: $viewModel.selectedCollectionMode) {
+                ForEach(BatchDataConfigurationManager.CollectionMode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(mode)
                 }
-            )) {
-                Text("샘플 수").tag(BatchDataConfigurationManager.CollectionMode.sampleCount)
-                Text("초단위").tag(BatchDataConfigurationManager.CollectionMode.duration)
-                Text("분단위").tag(BatchDataConfigurationManager.CollectionMode.minuteDuration)
             }
-            .pickerStyle(.segmented)
-            .disabled(isEffectivelyMonitoring || bluetoothKit.isRecording)
-            .opacity(isEffectivelyMonitoring || bluetoothKit.isRecording ? 0.6 : 1.0)
+            .pickerStyle(SegmentedPickerStyle())
+            .disabled(viewModel.isMonitoringActive)
         }
     }
     
@@ -157,7 +153,7 @@ struct SimplifiedBatchDataCollectionView: View {
                 
                 Spacer()
                 
-                if isEffectivelyMonitoring || bluetoothKit.isRecording {
+                if viewModel.isMonitoringActive || bluetoothKit.isRecording {
                     HStack(spacing: 4) {
                         Image(systemName: bluetoothKit.isRecording ? "record.circle.fill" : "eye.fill")
                             .foregroundColor(bluetoothKit.isRecording ? .red : .orange)
@@ -185,7 +181,7 @@ struct SimplifiedBatchDataCollectionView: View {
                 
                 Spacer()
                 
-                if isEffectivelyMonitoring || bluetoothKit.isRecording {
+                if viewModel.isMonitoringActive || bluetoothKit.isRecording {
                     HStack(spacing: 4) {
                         Image(systemName: bluetoothKit.isRecording ? "record.circle.fill" : "eye.fill")
                             .foregroundColor(bluetoothKit.isRecording ? .red : .orange)
@@ -216,10 +212,10 @@ struct SimplifiedBatchDataCollectionView: View {
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
                     .focused($isTextFieldFocused)
-                    .disabled(isEffectivelyMonitoring || bluetoothKit.isRecording)
-                    .opacity(isEffectivelyMonitoring || bluetoothKit.isRecording ? 0.6 : 1.0)
+                    .disabled(viewModel.isMonitoringActive || bluetoothKit.isRecording)
+                    .opacity(viewModel.isMonitoringActive || bluetoothKit.isRecording ? 0.6 : 1.0)
                     .onTapGesture {
-                        if isEffectivelyMonitoring || bluetoothKit.isRecording {
+                        if viewModel.isMonitoringActive || bluetoothKit.isRecording {
                             if bluetoothKit.isRecording {
                                 viewModel.handleTextFieldEditAttemptDuringRecording()
                             } else {
@@ -251,10 +247,10 @@ struct SimplifiedBatchDataCollectionView: View {
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
                     .focused($isTextFieldFocused)
-                    .disabled(isEffectivelyMonitoring || bluetoothKit.isRecording)
-                    .opacity(isEffectivelyMonitoring || bluetoothKit.isRecording ? 0.6 : 1.0)
+                    .disabled(viewModel.isMonitoringActive || bluetoothKit.isRecording)
+                    .opacity(viewModel.isMonitoringActive || bluetoothKit.isRecording ? 0.6 : 1.0)
                     .onTapGesture {
-                        if isEffectivelyMonitoring || bluetoothKit.isRecording {
+                        if viewModel.isMonitoringActive || bluetoothKit.isRecording {
                             if bluetoothKit.isRecording {
                                 viewModel.handleTextFieldEditAttemptDuringRecording()
                             } else {
@@ -276,70 +272,40 @@ struct SimplifiedBatchDataCollectionView: View {
     
     private var sensorSelectionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("수집할 센서")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-                
-                if isEffectivelyMonitoring {
-                    HStack(spacing: 4) {
-                        Image(systemName: "dot.radiowaves.left.and.right")
-                            .foregroundColor(.green)
-                            .symbolEffect(.pulse)
-                        Text("실시간 반영")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                            .fontWeight(.medium)
+            Text("센서 선택")
+                .font(.headline)
+            
+            HStack(spacing: 8) {
+                ForEach(mainSensors, id: \.self) { sensor in
+                    SensorToggleButton(
+                        sensor: sensor,
+                        isSelected: viewModel.isSensorSelected(sensor),
+                        isDisabled: viewModel.isMonitoringActive
+                    ) {
+                        if viewModel.isMonitoringActive {
+                            // 모니터링 중에는 경고 팝업 표시
+                            viewModel.updateSensorSelection([sensor])
+                        } else {
+                            // 모니터링 중이 아닐 때는 즉시 변경
+                            var newSelection = viewModel.selectedSensors
+                            if viewModel.isSensorSelected(sensor) {
+                                newSelection.remove(sensor)
+                            } else {
+                                newSelection.insert(sensor)
+                            }
+                            viewModel.updateSensorSelection(newSelection)
+                        }
                     }
                 }
             }
-            
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
-                ForEach(mainSensors, id: \.self) { sensor in
-                    sensorToggleButton(for: sensor)
-                }
-            }
         }
-    }
-    
-    private func sensorToggleButton(for sensor: SensorType) -> some View {
-        Button(action: {
-            var newSelection = viewModel.selectedSensors
-            if newSelection.contains(sensor) {
-                newSelection.remove(sensor)
-            } else {
-                newSelection.insert(sensor)
-            }
-            viewModel.updateSensorSelection(newSelection)
-        }) {
-            HStack {
-                Image(systemName: viewModel.selectedSensors.contains(sensor) ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(viewModel.selectedSensors.contains(sensor) ? .green : .gray)
-                
-                Text(sensor.displayName)
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(viewModel.selectedSensors.contains(sensor) ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
     }
     
     private var controlButtonsSection: some View {
         VStack(spacing: 12) {
             // 모니터링 컨트롤
             HStack(spacing: 12) {
-                if isEffectivelyMonitoring {
+                if viewModel.isMonitoringActive {
                     Button("모니터링 중지") {
                         // 데이터 기록 중이라면 경고 팝업 표시
                         if bluetoothKit.isRecording {
@@ -368,7 +334,7 @@ struct SimplifiedBatchDataCollectionView: View {
             }
             
             // 기록 컨트롤 (실질적인 모니터링이 활성화된 경우에만 표시)
-            if isEffectivelyMonitoring {
+            if viewModel.isMonitoringActive {
                 Divider()
                 
                 HStack(spacing: 12) {
@@ -401,7 +367,7 @@ struct SimplifiedBatchDataCollectionView: View {
                     }
                 }
                 
-                if !bluetoothKit.isRecording && isEffectivelyMonitoring {
+                if !bluetoothKit.isRecording && viewModel.isMonitoringActive {
                     Text("💡 센서 모니터링 중. 기록 시작 버튼을 눌러 데이터를 저장하세요.")
                         .font(.caption)
                         .foregroundColor(.blue)
@@ -452,10 +418,40 @@ struct SimplifiedBatchDataCollectionView: View {
             }
         )
     }
+}
+
+// MARK: - Helper Views
+
+private struct SensorToggleButton: View {
+    let sensor: SensorType
+    let isSelected: Bool
+    let isDisabled: Bool
+    let action: () -> Void
     
-    // 실질적인 모니터링 상태 (모니터링 활성화 + 선택된 센서 존재)
-    private var isEffectivelyMonitoring: Bool {
-        return viewModel.isMonitoringActive && !viewModel.selectedSensors.isEmpty
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isSelected ? .green : .gray)
+                    .font(.system(size: 14))
+                
+                Text(sensor.displayName)
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.5 : 1.0)
     }
 }
 
