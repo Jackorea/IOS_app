@@ -15,7 +15,7 @@ class BatchDataConfigurationViewModel: ObservableObject {
     // 경고 팝업 관련 상태 (UI에서 바인딩 가능하도록 @Published로 설정)
     @Published var showRecordingChangeWarning: Bool = false
     @Published var pendingSensorSelection: Set<SensorType>? = nil
-    @Published var pendingConfigurationChange: BatchDataConfigurationManager.PendingConfigurationChange? = nil
+    @Published var pendingConfigurationChange: BatchDataConfigurationManager.ConfigurationChangeType? = nil
     
     // MARK: - Business Logic Manager
     
