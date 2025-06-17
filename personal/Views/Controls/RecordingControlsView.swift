@@ -5,7 +5,7 @@ import BluetoothKit
 
 /// 센서 데이터 기록을 시작/중지하는 컨트롤 뷰
 struct RecordingControlsView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
     
     var body: some View {
         VStack(spacing: 8) {
@@ -63,5 +63,5 @@ struct RecordingControlsView: View {
 }
 
 #Preview {
-    RecordingControlsView(bluetoothKit: BluetoothKit())
+    RecordingControlsView(bluetoothKit: BluetoothKitViewModel())
 } 

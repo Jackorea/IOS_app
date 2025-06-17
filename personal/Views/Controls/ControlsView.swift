@@ -4,7 +4,7 @@ import BluetoothKit
 // MARK: - Controls View
 
 struct ControlsView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
     
     var body: some View {
         VStack(spacing: 12) {
@@ -54,5 +54,5 @@ struct ControlsView: View {
 }
 
 #Preview {
-    ControlsView(bluetoothKit: BluetoothKit())
+    ControlsView(bluetoothKit: BluetoothKitViewModel())
 } 

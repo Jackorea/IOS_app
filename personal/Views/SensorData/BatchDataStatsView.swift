@@ -5,7 +5,7 @@ import BluetoothKit
 
 /// 센서 데이터 통계를 표시하는 뷰
 struct BatchDataStatsView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
     
     var body: some View {
         VStack(spacing: 16) {
@@ -208,6 +208,6 @@ struct StatItem: View {
 // MARK: - Preview
 
 #Preview {
-    BatchDataStatsView(bluetoothKit: BluetoothKit())
+    BatchDataStatsView(bluetoothKit: BluetoothKitViewModel())
         .padding()
 } 

@@ -4,7 +4,7 @@ import BluetoothKit
 // MARK: - 센서 데이터 뷰
 
 struct SensorDataView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
     
     var body: some View {
         VStack(spacing: 16) {
@@ -37,5 +37,5 @@ struct SensorDataView: View {
 }
 
 #Preview {
-    SensorDataView(bluetoothKit: BluetoothKit())
+    SensorDataView(bluetoothKit: BluetoothKitViewModel())
 } 

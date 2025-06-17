@@ -5,7 +5,7 @@ import BluetoothKit
 
 /// BluetoothKit의 연결 상태와 컨트롤을 보여주는 향상된 상태 카드 뷰
 struct EnhancedStatusCardView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
     
     var body: some View {
         VStack(spacing: 16) {
@@ -288,5 +288,5 @@ struct DataRateIndicator: View {
 }
 
 #Preview {
-    EnhancedStatusCardView(bluetoothKit: BluetoothKit())
+    EnhancedStatusCardView(bluetoothKit: BluetoothKitViewModel())
 } 

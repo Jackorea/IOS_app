@@ -5,7 +5,7 @@ import BluetoothKit
 
 /// ViewModel을 사용한 깔끔한 배치 데이터 수집 뷰
 struct SimplifiedBatchDataCollectionView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
     @StateObject private var viewModel: BatchDataConfigurationViewModel
     @FocusState private var isTextFieldFocused: Bool
     @State private var showStopMonitoringAlert = false
@@ -13,9 +13,9 @@ struct SimplifiedBatchDataCollectionView: View {
     // 주로 사용하는 센서들
     private let mainSensors: [SensorType] = [.eeg, .ppg, .accelerometer]
     
-    init(bluetoothKit: BluetoothKit) {
+    init(bluetoothKit: BluetoothKitViewModel) {
         self.bluetoothKit = bluetoothKit
-        self._viewModel = StateObject(wrappedValue: BatchDataConfigurationViewModel(bluetoothKit: bluetoothKit))
+        self._viewModel = StateObject(wrappedValue: BatchDataConfigurationViewModel(bluetoothKit: bluetoothKit.sdkInstance))
     }
     
     var body: some View {
@@ -415,5 +415,5 @@ private struct SensorToggleButton: View {
 }
 
 #Preview {
-    SimplifiedBatchDataCollectionView(bluetoothKit: BluetoothKit())
+    SimplifiedBatchDataCollectionView(bluetoothKit: BluetoothKitViewModel())
 } 

@@ -17,7 +17,7 @@ import UniformTypeIdentifiers
 // BluetoothViewModel 클래스와 확장들은 이동될 예정
 
 struct ContentView: View {
-    @StateObject private var bluetoothKit = BluetoothKit()
+    @StateObject private var bluetoothKitViewModel = BluetoothKitViewModel()
     @State private var showingRecordedFiles = false
 
     var body: some View {
@@ -26,7 +26,7 @@ struct ContentView: View {
                 LazyVStack(spacing: 20) {
                     statusCardSection
                     
-                    if bluetoothKit.isConnected {
+                    if bluetoothKitViewModel.isConnected {
                         connectedContentSections
                     }
                 }
@@ -41,14 +41,14 @@ struct ContentView: View {
                     filesButton
                 }
             }
-            .alert("Bluetooth가 꺼져 있습니다", isPresented: $bluetoothKit.isBluetoothDisabled) {
+            .alert("Bluetooth가 꺼져 있습니다", isPresented: $bluetoothKitViewModel.isBluetoothDisabled) {
                 Button("설정", action: openBluetoothSettings)
                 Button("닫기", role: .cancel) { }
             } message: {
                 Text("센서 디바이스를 스캔하고 연결하려면 Bluetooth를 켜주세요.")
             }
             .sheet(isPresented: $showingRecordedFiles) {
-                RecordedFilesView(bluetoothKit: bluetoothKit)
+                RecordedFilesView(bluetoothKit: bluetoothKitViewModel)
             }
         }
     }
@@ -56,22 +56,22 @@ struct ContentView: View {
     // MARK: - View Components
     
     private var statusCardSection: some View {
-        EnhancedStatusCardView(bluetoothKit: bluetoothKit)
+        EnhancedStatusCardView(bluetoothKit: bluetoothKitViewModel)
             .frame(maxWidth: .infinity)
     }
     
     @ViewBuilder
     private var connectedContentSections: some View {
         // 실시간 센서 데이터
-        SensorDataView(bluetoothKit: bluetoothKit)
+        SensorDataView(bluetoothKit: bluetoothKitViewModel)
             .frame(maxWidth: .infinity)
         
         // 배치 데이터 수집 설정 (간소화된 버전 사용)
-        SimplifiedBatchDataCollectionView(bluetoothKit: bluetoothKit)
+        SimplifiedBatchDataCollectionView(bluetoothKit: bluetoothKitViewModel)
             .frame(maxWidth: .infinity)
         
         // 디바이스 컨트롤
-        ControlsView(bluetoothKit: bluetoothKit)
+        ControlsView(bluetoothKit: bluetoothKitViewModel)
             .frame(maxWidth: .infinity)
     }
     
@@ -85,7 +85,7 @@ struct ContentView: View {
     // MARK: - Computed Properties
     
     private var navigationTitle: String {
-        switch (bluetoothKit.isConnected, bluetoothKit.isScanning) {
+        switch (bluetoothKitViewModel.isConnected, bluetoothKitViewModel.isScanning) {
         case (true, _): return "센서 모니터"
         case (false, true): return "스캔 중..."
         case (false, false): return "디바이스 스캐너"

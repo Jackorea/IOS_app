@@ -3,7 +3,7 @@ import BluetoothKit
 
 struct AccelerometerDataCard: View {
     let reading: AccelerometerReading
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
     
     // 중력 추정값 저장
     @State private var gravityX: Double = 0
@@ -177,6 +177,6 @@ struct AccelerometerDataCard: View {
 #Preview {
     AccelerometerDataCard(
         reading: AccelerometerReading(x: 1234, y: -567, z: 890),
-        bluetoothKit: BluetoothKit()
+        bluetoothKit: BluetoothKitViewModel()
     )
 } 

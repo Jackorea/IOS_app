@@ -1,11 +1,12 @@
 import SwiftUI
 import BluetoothKit
 import UniformTypeIdentifiers
+import QuickLook
 
 // MARK: - Recorded Files View
 
 struct RecordedFilesView: View {
-    @ObservedObject var bluetoothKit: BluetoothKit
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var recordedFiles: [URL] = []
     @State private var selectedFileURL: URL?
@@ -269,5 +270,5 @@ private extension Bundle {
 }
 
 #Preview {
-    RecordedFilesView(bluetoothKit: BluetoothKit())
+    RecordedFilesView(bluetoothKit: BluetoothKitViewModel())
 } 
