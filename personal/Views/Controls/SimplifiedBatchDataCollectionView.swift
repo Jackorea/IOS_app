@@ -102,6 +102,10 @@ struct SimplifiedBatchDataCollectionView: View {
             }
             .pickerStyle(SegmentedPickerStyle())
             .disabled(viewModel.isMonitoringActive)
+            .onChange(of: viewModel.selectedCollectionMode) { newMode in
+                // 모드가 변경되면 BatchDataConfigurationManager에 전달
+                viewModel.updateCollectionMode(newMode)
+            }
         }
     }
     

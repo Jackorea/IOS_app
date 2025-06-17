@@ -168,7 +168,6 @@ public class BatchDataConfigurationManager {
         self.setupBatchDelegate()
         self.configureAllSensors()
         self.isMonitoringActive = true
-        print("✅ 센서 모니터링 시작 - 선택된 센서: \(self.selectedSensors.map { $0.displayName }.joined(separator: ", "))")
     }
     
     public func stopMonitoring() {
@@ -181,13 +180,11 @@ public class BatchDataConfigurationManager {
         self.bluetoothKit.batchDataDelegate = nil
         self.batchDelegate = nil
         self.isMonitoringActive = false
-        print("❌ 센서 모니터링 중지 - 모든 센서 수신 중단")
     }
     
     public func updateSensorSelection(_ sensors: Set<SensorType>) {
         // 기록 중이라면 경고 후 사용자 선택 요청
         if isMonitoringActive && self.bluetoothKit.isRecording {
-            print("⚠️ 기록 중 센서 선택 변경 시도 감지")
             // UI에 경고 팝업 표시 요청
             self.pendingConfigurationChange = .sensorSelection(sensors)
             self.pendingSensorSelection = sensors  // 하위 호환성
@@ -202,8 +199,6 @@ public class BatchDataConfigurationManager {
     /// 사용자가 경고 팝업에서 "기록 중지 후 변경"을 선택했을 때 호출
     public func confirmSensorChangeWithRecordingStop() {
         guard let pendingChange = self.pendingConfigurationChange else { return }
-        
-        print("✅ 사용자 확인: 기록 중지 후 설정 변경")
         
         // 기록 중지
         self.bluetoothKit.stopRecording()
@@ -226,8 +221,6 @@ public class BatchDataConfigurationManager {
     
     /// 사용자가 경고 팝업에서 "취소"를 선택했을 때 호출
     public func cancelSensorChange() {
-        print("❌ 사용자 취소: 설정 변경 취소")
-        
         // 임시 저장 정리
         self.pendingConfigurationChange = nil
         self.pendingSensorSelection = nil
@@ -237,12 +230,10 @@ public class BatchDataConfigurationManager {
     /// 실제 센서 선택 적용 로직
     private func applySensorSelection(_ sensors: Set<SensorType>) {
         self.selectedSensors = sensors
-        print("🔄 센서 선택 업데이트: \(sensors.map { $0.displayName }.joined(separator: ", "))")
         
         // 즉시 BatchDataConsoleLogger에 센서 선택 변경사항 반영
         if isMonitoringActive {
             self.batchDelegate?.updateSelectedSensors(self.selectedSensors)
-            print("📝 콘솔 출력 센서 즉시 업데이트: \(self.selectedSensors.map { $0.displayName }.joined(separator: ", "))")
             
             // BluetoothKit에서도 센서 데이터 수집 재설정
             self.reconfigureSensorsForSelection()
@@ -253,7 +244,6 @@ public class BatchDataConfigurationManager {
     public func updateCollectionMode(_ mode: CollectionMode) {
         guard selectedCollectionMode != mode else { return }
         selectedCollectionMode = mode
-        print("🔄 수집 모드 변경: \(mode.displayName)")
         
         // 모니터링 중이라면 설정 재적용
         if isMonitoringActive {
@@ -287,7 +277,6 @@ public class BatchDataConfigurationManager {
     public func setSampleCount(_ value: Int, for sensor: SensorType) {
         // 기록 중이라면 경고 후 사용자 선택 요청
         if isMonitoringActive && self.bluetoothKit.isRecording {
-            print("⚠️ 기록 중 샘플 수 변경 시도 감지")
             // UI에 경고 팝업 표시 요청 (설정 변경)
             self.pendingConfigurationChange = .sampleCount(value: value, sensor: sensor)
             self.showRecordingChangeWarning = true
@@ -302,7 +291,6 @@ public class BatchDataConfigurationManager {
     public func setDuration(_ value: Int, for sensor: SensorType) {
         // 기록 중이라면 경고 후 사용자 선택 요청
         if isMonitoringActive && self.bluetoothKit.isRecording {
-            print("⚠️ 기록 중 시간 설정 변경 시도 감지")
             // UI에 경고 팝업 표시 요청 (설정 변경)
             self.pendingConfigurationChange = .duration(value: value, sensor: sensor)
             self.showRecordingChangeWarning = true
@@ -370,7 +358,6 @@ public class BatchDataConfigurationManager {
         // 모니터링 중이고 batchDelegate가 있다면 즉시 모드 업데이트
         if isMonitoringActive, let delegate = self.batchDelegate {
             delegate.updateAccelerometerMode(mode)
-            print("🔄 실시간 가속도계 모드 변경: \(mode.description)")
         }
     }
     
@@ -398,7 +385,6 @@ public class BatchDataConfigurationManager {
         self.batchDelegate?.updateSelectedSensors(self.selectedSensors)
         // 현재 가속도계 모드도 함께 전달
         self.batchDelegate?.updateAccelerometerMode(self.bluetoothKit.accelerometerMode)
-        print("🔧 BatchDataConsoleLogger 설정 완료 - 선택된 센서: \(self.selectedSensors.map { $0.displayName }.joined(separator: ", "))")
     }
     
     /// 모든 센서 설정 적용
@@ -408,14 +394,12 @@ public class BatchDataConfigurationManager {
                 self.configureSensor(sensorType, isInitial: true)
             } else {
                 self.bluetoothKit.disableDataCollection(for: sensorType)
-                print("🚫 초기 비활성화: \(sensorType.displayName) - 데이터 수집 제외")
             }
         }
     }
     
     /// 변경사항 적용
     private func applyChanges() {
-        print("🔄 센서 선택 변경 감지 - 설정 업데이트 중...")
         self.setupBatchDelegate()
         
         if self.bluetoothKit.isRecording {
@@ -423,29 +407,18 @@ public class BatchDataConfigurationManager {
         }
         
         self.configureAllSensors()
-        print("✅ 센서 설정 업데이트 완료")
     }
     
     /// 특정 센서 설정
     private func configureSensor(_ sensor: SensorType, isInitial: Bool = false) {
-        let prefix = isInitial ? "🔧 초기 설정" : "🔄 자동 변경"
-        
         switch self.selectedCollectionMode {
         case .sampleCount:
             let sampleCount = self.getSampleCount(for: sensor)
             self.bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensor)
             
-            let expectedTime = self.getExpectedTime(for: sensor, sampleCount: sampleCount)
-            print("\(prefix): \(sensor.displayName) - \(sampleCount)개 샘플마다 배치 수신")
-            print("   → \(sensor.displayName): \(sampleCount)개 샘플 = 약 \(String(format: "%.1f", expectedTime))초")
-            
         case .duration:
             let duration = self.getDuration(for: sensor)
             self.bluetoothKit.setDataCollection(timeInterval: TimeInterval(duration), for: sensor)
-            
-            let expectedSamples = self.getExpectedSamples(for: sensor, duration: duration)
-            print("\(prefix): \(sensor.displayName) - \(duration)초마다 배치 수신")
-            print("   → \(sensor.displayName): \(duration)초마다 약 \(expectedSamples)개 샘플 예상")
         }
     }
     
@@ -473,11 +446,9 @@ public class BatchDataConfigurationManager {
             if self.selectedSensors.contains(sensorType) {
                 // 선택된 센서: 데이터 수집 재활성화
                 self.configureSensor(sensorType, isInitial: false)
-                print("✅ 재활성화: \(sensorType.displayName) - 데이터 수집 재개")
             } else {
                 // 선택 해제된 센서: 데이터 수집 비활성화
                 self.bluetoothKit.disableDataCollection(for: sensorType)
-                print("🚫 비활성화: \(sensorType.displayName) - 데이터 수집 중지")
             }
         }
     }
@@ -491,7 +462,6 @@ public class BatchDataConfigurationManager {
         // 모니터링 중이라면 센서 재설정
         if isMonitoringActive && self.selectedSensors.contains(sensor) {
             self.configureSensor(sensor, isInitial: false)
-            print("🔄 샘플 수 변경 적용: \(sensor.displayName) - \(value)개 샘플")
         }
     }
     
@@ -504,7 +474,6 @@ public class BatchDataConfigurationManager {
         // 모니터링 중이라면 센서 재설정
         if isMonitoringActive && self.selectedSensors.contains(sensor) {
             self.configureSensor(sensor, isInitial: false)
-            print("🔄 시간 설정 변경 적용: \(sensor.displayName) - \(value)초")
         }
     }
     
