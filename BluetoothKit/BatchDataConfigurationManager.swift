@@ -159,6 +159,12 @@ public class BatchDataConfigurationManager {
     public func startMonitoring() {
         guard !self.selectedSensors.isEmpty else { return }
         
+        // BluetoothKit에 센서 선택 전달
+        self.bluetoothKit.setSelectedSensors(self.selectedSensors)
+        
+        // BluetoothKit의 모니터링 활성화
+        self.bluetoothKit.enableMonitoring()
+        
         self.setupBatchDelegate()
         self.configureAllSensors()
         self.isMonitoringActive = true
@@ -166,12 +172,16 @@ public class BatchDataConfigurationManager {
     }
     
     public func stopMonitoring() {
+        // BluetoothKit에서 센서 선택을 비우고 모니터링 비활성화
+        self.bluetoothKit.setSelectedSensors([])  // 모든 센서 수신 중단
+        self.bluetoothKit.disableMonitoring()
+        
         self.bluetoothKit.disableAllDataCollection()
         self.batchDelegate?.updateSelectedSensors(Set<SensorType>())
         self.bluetoothKit.batchDataDelegate = nil
         self.batchDelegate = nil
         self.isMonitoringActive = false
-        print("❌ 센서 모니터링 중지")
+        print("❌ 센서 모니터링 중지 - 모든 센서 수신 중단")
     }
     
     public func updateSensorSelection(_ sensors: Set<SensorType>) {
@@ -354,6 +364,16 @@ public class BatchDataConfigurationManager {
         return self.selectedSensors.contains(sensor)
     }
     
+    /// 가속도계 모드를 업데이트합니다.
+    /// 모니터링 중일 때 실시간으로 콘솔 출력 모드를 변경할 수 있습니다.
+    public func updateAccelerometerMode(_ mode: AccelerometerMode) {
+        // 모니터링 중이고 batchDelegate가 있다면 즉시 모드 업데이트
+        if isMonitoringActive, let delegate = self.batchDelegate {
+            delegate.updateAccelerometerMode(mode)
+            print("🔄 실시간 가속도계 모드 변경: \(mode.description)")
+        }
+    }
+    
     // MARK: - Private Methods
     
     private enum ValueType {
@@ -376,6 +396,8 @@ public class BatchDataConfigurationManager {
         }
         
         self.batchDelegate?.updateSelectedSensors(self.selectedSensors)
+        // 현재 가속도계 모드도 함께 전달
+        self.batchDelegate?.updateAccelerometerMode(self.bluetoothKit.accelerometerMode)
         print("🔧 BatchDataConsoleLogger 설정 완료 - 선택된 센서: \(self.selectedSensors.map { $0.displayName }.joined(separator: ", "))")
     }
     

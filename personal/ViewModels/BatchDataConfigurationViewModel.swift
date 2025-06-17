@@ -147,6 +147,12 @@ class BatchDataConfigurationViewModel: ObservableObject, BatchDataConfigurationM
         return configurationManager.isSensorSelected(sensor)
     }
     
+    /// 가속도계 모드를 업데이트합니다.
+    /// 실시간 모니터링 중에 모드 변경을 콘솔에 즉시 반영합니다.
+    public func updateAccelerometerMode(_ mode: AccelerometerMode) {
+        configurationManager.updateAccelerometerMode(mode)
+    }
+    
     // MARK: - Private Methods
     
     /// SDK의 초기 상태를 ViewModel에 동기화합니다.

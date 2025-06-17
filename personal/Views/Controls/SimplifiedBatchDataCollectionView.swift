@@ -60,6 +60,10 @@ struct SimplifiedBatchDataCollectionView: View {
         } message: {
             Text("데이터 기록이 진행 중입니다.\n모니터링을 중지하면 기록도 함께 중지됩니다.")
         }
+        .onChange(of: bluetoothKit.accelerometerMode) { newMode in
+            // 실시간 모니터링 중에 가속도계 모드가 변경되면 콘솔 출력에 즉시 반영
+            viewModel.updateAccelerometerMode(newMode)
+        }
     }
     
     // MARK: - View Components
@@ -266,7 +270,7 @@ struct SimplifiedBatchDataCollectionView: View {
             HStack(spacing: 12) {
                 if viewModel.isMonitoringActive {
                     Button("모니터링 중지") {
-                        // 데이터 기록 중이라면 경고 팝업 표시
+                        // 기록 중이면 경고 팝업 표시, 아니면 바로 중지
                         if bluetoothKit.isRecording {
                             showStopMonitoringAlert = true
                         } else {

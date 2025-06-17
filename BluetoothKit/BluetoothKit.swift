@@ -377,6 +377,9 @@ public class BluetoothKit: @unchecked Sendable {
     /// 각 센서별 데이터 수집 설정
     private var dataCollectionConfigs: [SensorType: DataCollectionConfig] = [:]
     
+    /// 현재 선택된 센서 타입들 (모니터링할 센서들)
+    private var selectedSensors: Set<SensorType> = [.eeg, .ppg, .accelerometer]
+    
     /// 센서별 데이터 버퍼 (샘플 기반 모드용)
     private var eegBuffer: [EEGReading] = []
     private var ppgBuffer: [PPGReading] = []
@@ -386,6 +389,13 @@ public class BluetoothKit: @unchecked Sendable {
     private var eegTimeBatchManager: TimeBatchManager<EEGReading>?
     private var ppgTimeBatchManager: TimeBatchManager<PPGReading>?
     private var accelerometerTimeBatchManager: TimeBatchManager<AccelerometerReading>?
+    
+    // 가속도계 모드 처리용 중력 추정값 (DataRecorder와 동기화)
+    private var gravityX: Double = 0
+    private var gravityY: Double = 0
+    private var gravityZ: Double = 0
+    private var isGravityInitialized = false
+    private let gravityFilterFactor: Double = 0.1
     
     // MARK: - Private Components
     
@@ -589,6 +599,72 @@ public class BluetoothKit: @unchecked Sendable {
     /// ```
     public var isConnected: Bool {
         return bluetoothManager.isConnected
+    }
+    
+    // MARK: - Sensor Monitoring Control
+    
+    /// 센서 모니터링을 활성화합니다.
+    ///
+    /// 연결된 디바이스로부터 선택된 센서의 데이터 수신을 시작합니다.
+    /// 모니터링이 활성화되면 최신 센서 데이터가 실시간으로 업데이트됩니다.
+    ///
+    /// ## 예시
+    /// ```swift
+    /// // 센서 선택 후 모니터링 시작
+    /// bluetoothKit.setSelectedSensors([.eeg, .ppg])
+    /// bluetoothKit.enableMonitoring()
+    /// ```
+    public func enableMonitoring() {
+        bluetoothManager.enableMonitoring()
+    }
+    
+    /// 센서 모니터링을 비활성화합니다.
+    ///
+    /// 모든 센서의 데이터 수신을 중지합니다 (배터리 센서 제외).
+    /// 최신 센서 데이터 업데이트가 중단되고 모든 데이터 버퍼가 클리어됩니다.
+    ///
+    /// ## 예시
+    /// ```swift
+    /// bluetoothKit.disableMonitoring()
+    /// ```
+    public func disableMonitoring() {
+        // 모든 센서 수신 중단 (배터리 제외)
+        selectedSensors = []
+        bluetoothManager.disableMonitoring()
+        
+        // 모든 센서 데이터 버퍼 클리어
+        clearAllBuffers()
+        
+        // 배치 데이터 수집도 중단
+        disableAllDataCollection()
+        
+        // 최신 센서 데이터도 클리어 (배터리 제외)
+        latestEEGReading = nil
+        latestPPGReading = nil
+        latestAccelerometerReading = nil
+    }
+    
+    /// 모니터링할 센서 타입을 설정합니다.
+    ///
+    /// 지정된 센서들만 데이터를 수신하고 배치 수집이나 기록에 포함됩니다.
+    /// 연결 상태와 관계없이 설정할 수 있으며, 연결 후 자동으로 적용됩니다.
+    ///
+    /// - Parameter sensors: 모니터링할 센서 타입들의 집합
+    ///
+    /// ## 예시
+    /// ```swift
+    /// // EEG와 PPG만 모니터링
+    /// bluetoothKit.setSelectedSensors([.eeg, .ppg])
+    ///
+    /// // 모든 센서 모니터링
+    /// bluetoothKit.setSelectedSensors([.eeg, .ppg, .accelerometer])
+    ///
+    /// // 센서 모니터링 없음 (배터리만)
+    /// bluetoothKit.setSelectedSensors([])
+    /// ```
+    public func setSelectedSensors(_ sensors: Set<SensorType>) {
+        selectedSensors = sensors
+        bluetoothManager.setSelectedSensors(sensors)
     }
     
     // MARK: - Batch Data Collection API
@@ -844,6 +920,58 @@ public class BluetoothKit: @unchecked Sendable {
     public func setAutoReconnect(enabled: Bool) {
         isAutoReconnectEnabled = enabled
     }
+    
+    /// 내부 로깅 메서드
+    private func log(_ message: String) {
+        logger.log(message)
+    }
+    
+    /// 중력 성분을 추정하고 업데이트하는 함수 (움직임 모드용)
+    private func updateGravityEstimate(_ reading: AccelerometerReading) {
+        if !isGravityInitialized {
+            // 첫 번째 읽기: 초기값으로 설정
+            gravityX = Double(reading.x)
+            gravityY = Double(reading.y)
+            gravityZ = Double(reading.z)
+            isGravityInitialized = true
+        } else {
+            // 저역 통과 필터를 사용한 중력 추정
+            gravityX = gravityX * (1 - gravityFilterFactor) + Double(reading.x) * gravityFilterFactor
+            gravityY = gravityY * (1 - gravityFilterFactor) + Double(reading.y) * gravityFilterFactor
+            gravityZ = gravityZ * (1 - gravityFilterFactor) + Double(reading.z) * gravityFilterFactor
+        }
+    }
+    
+    /// 가속도계 모드에 따라 처리된 데이터를 생성합니다.
+    private func processAccelerometerReading(_ reading: AccelerometerReading) -> AccelerometerReading {
+        if accelerometerMode == .raw {
+            // 원시값 모드: 원래 데이터 그대로 반환
+            return reading
+        } else {
+            // 움직임 모드: 중력 제거된 선형 가속도 반환
+            updateGravityEstimate(reading)
+            let linearX = Int16(Double(reading.x) - gravityX)
+            let linearY = Int16(Double(reading.y) - gravityY)
+            let linearZ = Int16(Double(reading.z) - gravityZ)
+            
+            return AccelerometerReading(x: linearX, y: linearY, z: linearZ, timestamp: reading.timestamp)
+        }
+    }
+    
+    /// 현재 모니터링 중인 센서 타입들을 반환합니다.
+    ///
+    /// - Returns: 현재 선택된 센서 타입들의 집합
+    ///
+    /// ## 예시
+    /// ```swift
+    /// let selectedSensors = bluetoothKit.selectedSensorTypes
+    /// if selectedSensors.contains(.eeg) {
+    ///     print("EEG 센서 모니터링 중")
+    /// }
+    /// ```
+    public var selectedSensorTypes: Set<SensorType> {
+        return selectedSensors
+    }
 }
 
 // MARK: - BluetoothManagerDelegate
@@ -889,6 +1017,9 @@ extension BluetoothKit: BluetoothManagerDelegate {
 extension BluetoothKit: SensorDataDelegate {
     
     internal func didReceiveEEGData(_ reading: EEGReading) {
+        // 선택된 센서가 아니면 처리하지 않음
+        guard selectedSensors.contains(.eeg) else { return }
+        
         latestEEGReading = reading
         
         // 배치 수집이 설정된 센서만 기록
@@ -900,6 +1031,9 @@ extension BluetoothKit: SensorDataDelegate {
     }
     
     internal func didReceivePPGData(_ reading: PPGReading) {
+        // 선택된 센서가 아니면 처리하지 않음
+        guard selectedSensors.contains(.ppg) else { return }
+        
         latestPPGReading = reading
         
         // 배치 수집이 설정된 센서만 기록
@@ -911,17 +1045,26 @@ extension BluetoothKit: SensorDataDelegate {
     }
     
     internal func didReceiveAccelerometerData(_ reading: AccelerometerReading) {
-        latestAccelerometerReading = reading
+        // 선택된 센서가 아니면 처리하지 않음
+        guard selectedSensors.contains(.accelerometer) else { return }
+        
+        // 가속도계 모드에 따라 데이터 처리 (원시값 또는 선형 가속도)
+        let processedReading = processAccelerometerReading(reading)
+        
+        // 처리된 데이터를 최신 읽기값으로 저장
+        latestAccelerometerReading = processedReading
         
         // 배치 수집이 설정된 센서만 기록
         if isRecording && dataCollectionConfigs[.accelerometer] != nil {
-            dataRecorder.recordAccelerometerData([reading])
+            dataRecorder.recordAccelerometerData([processedReading])
         }
         
-        addToAccelerometerBuffer(reading)
+        // 배치 처리에도 처리된 데이터 사용
+        addToAccelerometerBuffer(processedReading)
     }
     
     internal func didReceiveBatteryData(_ reading: BatteryReading) {
+        // 배터리 데이터는 항상 처리 (예외)
         latestBatteryReading = reading
         
         // 배터리 데이터도 기록 (배치 수집 설정과 무관하게)
@@ -956,9 +1099,5 @@ extension BluetoothKit: DataRecorderDelegate {
 
 @available(iOS 13.0, macOS 10.15, *)
 extension BluetoothKit {
-    
-    /// 내부 로깅 메서드
-    private func log(_ message: String) {
-        logger.log(message)
-    }
+    // Duplicate functions removed - they are already defined earlier in the file
 } 

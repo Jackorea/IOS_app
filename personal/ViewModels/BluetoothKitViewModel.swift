@@ -46,7 +46,13 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     @Published public var connectionState: ConnectionState = .disconnected
     
     /// 가속도계 모드 (원시값 vs 움직임)
-    @Published public var accelerometerMode: AccelerometerMode = .raw
+    @Published public var accelerometerMode: AccelerometerMode = .raw {
+        didSet {
+            // 값이 실제로 변경되었을 때만 SDK 인스턴스 업데이트
+            guard oldValue != accelerometerMode else { return }
+            bluetoothKit.accelerometerMode = accelerometerMode
+        }
+    }
     
     // MARK: - SDK Instance
     
@@ -151,6 +157,28 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
         bluetoothKit.updateRecordingSensors()
     }
     
+    // MARK: - Sensor Monitoring Control
+    
+    /// 센서 모니터링을 활성화합니다.
+    public func enableMonitoring() {
+        bluetoothKit.enableMonitoring()
+    }
+    
+    /// 센서 모니터링을 비활성화합니다.
+    public func disableMonitoring() {
+        bluetoothKit.disableMonitoring()
+    }
+    
+    /// 모니터링할 센서 타입을 설정합니다.
+    public func setSelectedSensors(_ sensors: Set<SensorType>) {
+        bluetoothKit.setSelectedSensors(sensors)
+    }
+    
+    /// 현재 모니터링 중인 센서 타입들을 반환합니다.
+    public var selectedSensorTypes: Set<SensorType> {
+        return bluetoothKit.selectedSensorTypes
+    }
+    
     // MARK: - Private Methods
     
     /// SDK의 초기 상태를 ViewModel에 동기화합니다.
@@ -243,6 +271,13 @@ extension BluetoothKitViewModel {
     
     /// 가속도계 모드가 변경되었을 때 호출
     func bluetoothKit(_ kit: BluetoothKit, didUpdateAccelerometerMode mode: AccelerometerMode) {
+        // 값이 실제로 다를 때만 업데이트 (무한 루프 방지)
+        guard accelerometerMode != mode else { return }
         accelerometerMode = mode
+        
+        // 배치 데이터 로거에도 모드 업데이트 전달
+        if let batchLogger = bluetoothKit.batchDataDelegate as? BatchDataConsoleLogger {
+            batchLogger.updateAccelerometerMode(mode)
+        }
     }
 } 
