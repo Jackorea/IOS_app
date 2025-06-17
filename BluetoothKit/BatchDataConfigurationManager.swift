@@ -3,7 +3,7 @@ import Combine
 
 /// 배치 데이터 수집 설정을 관리하는 비즈니스 로직 클래스
 /// UI 프레임워크에 의존하지 않는 순수한 비즈니스 로직을 제공합니다.
-public class BatchDataConfigurationManager {
+public class BatchDataConfigurationManager: ObservableObject {
     
     // MARK: - Types
     
