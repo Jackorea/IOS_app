@@ -5,28 +5,6 @@ struct AccelerometerDataCard: View {
     let reading: AccelerometerReading
     @ObservedObject var bluetoothKit: BluetoothKitViewModel
     
-    // 중력 추정값 저장
-    @State private var gravityX: Double = 0
-    @State private var gravityY: Double = 0
-    @State private var gravityZ: Double = 0
-    @State private var isInitialized = false
-    
-    // 중력 필터링 상수 (0.1 = 느린 적응, 0.9 = 빠른 적응)
-    private let gravityFilterFactor: Double = 0.1
-    
-    // 선형 가속도 계산 (중력 제거)
-    private var linearAccelX: Int16 {
-        return Int16(Double(reading.x) - gravityX)
-    }
-    
-    private var linearAccelY: Int16 {
-        return Int16(Double(reading.y) - gravityY)
-    }
-    
-    private var linearAccelZ: Int16 {
-        return Int16(Double(reading.z) - gravityZ)
-    }
-    
     var body: some View {
         VStack(spacing: 12) {
             // 헤더 섹션
@@ -93,12 +71,13 @@ struct AccelerometerDataCard: View {
             }
             
             // 데이터 표시 섹션
+            // BluetoothKit에서 이미 모드에 따라 처리된 데이터를 그대로 표시
             HStack(spacing: 20) {
                 VStack {
                     Text("X축")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text("\(bluetoothKit.accelerometerMode == .raw ? reading.x : linearAccelX)")
+                    Text("\(reading.x)")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
@@ -109,7 +88,7 @@ struct AccelerometerDataCard: View {
                     Text("Y축")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text("\(bluetoothKit.accelerometerMode == .raw ? reading.y : linearAccelY)")
+                    Text("\(reading.y)")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
@@ -120,7 +99,7 @@ struct AccelerometerDataCard: View {
                     Text("Z축")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text("\(bluetoothKit.accelerometerMode == .raw ? reading.z : linearAccelZ)")
+                    Text("\(reading.z)")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
@@ -139,38 +118,6 @@ struct AccelerometerDataCard: View {
                         .stroke(Color.blue.opacity(0.3), lineWidth: 1)
                 )
         )
-        .onAppear {
-            updateGravityEstimate()
-        }
-        .onChange(of: reading.x) { _ in
-            updateGravityEstimate()
-        }
-        .onChange(of: reading.y) { _ in
-            updateGravityEstimate()
-        }
-        .onChange(of: reading.z) { _ in
-            updateGravityEstimate()
-        }
-    }
-    
-    // 중력 성분을 추정하고 업데이트하는 함수
-    private func updateGravityEstimate() {
-        if !isInitialized {
-            // 첫 번째 읽기: 초기값으로 설정
-            gravityX = Double(reading.x)
-            gravityY = Double(reading.y)
-            gravityZ = Double(reading.z)
-            
-            // 몇 번의 읽기 후 안정화 표시
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                isInitialized = true
-            }
-        } else {
-            // 저역 통과 필터를 사용한 중력 추정
-            gravityX = gravityX * (1 - gravityFilterFactor) + Double(reading.x) * gravityFilterFactor
-            gravityY = gravityY * (1 - gravityFilterFactor) + Double(reading.y) * gravityFilterFactor
-            gravityZ = gravityZ * (1 - gravityFilterFactor) + Double(reading.z) * gravityFilterFactor
-        }
     }
 }
 
