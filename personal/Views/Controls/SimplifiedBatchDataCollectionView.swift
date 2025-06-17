@@ -48,6 +48,12 @@ struct SimplifiedBatchDataCollectionView: View {
         .onTapGesture {
             isTextFieldFocused = false
         }
+        .onChange(of: isTextFieldFocused) { isFocused in
+            // 포커스가 해제될 때 모든 텍스트 필드 검사하고 빈 값이면 기본값으로 복원
+            if !isFocused {
+                restoreEmptyFieldsToDefaults()
+            }
+        }
         .alert("모니터링 중지 확인", isPresented: $showStopMonitoringAlert) {
             Button("기록 및 모니터링 중지", role: .destructive) {
                 // 기록 중지 후 모니터링 중지
@@ -196,7 +202,7 @@ struct SimplifiedBatchDataCollectionView: View {
                         }
                     }
                     .onChange(of: sampleCountBinding(for: sensor).wrappedValue) { newValue in
-                        _ = viewModel.validateSampleCount(newValue, for: sensor)
+                        validateAndFixSampleCount(newValue, for: sensor)
                     }
                 
                 Text("샘플")
@@ -227,7 +233,7 @@ struct SimplifiedBatchDataCollectionView: View {
                         }
                     }
                     .onChange(of: durationBinding(for: sensor).wrappedValue) { newValue in
-                        _ = viewModel.validateDuration(newValue, for: sensor)
+                        validateAndFixDuration(newValue, for: sensor)
                     }
                 
                 Text("초")
@@ -359,7 +365,16 @@ struct SimplifiedBatchDataCollectionView: View {
     
     /// ViewModel의 기본값을 사용하여 중복 제거
     private func defaultSampleCount(for sensor: SensorType) -> Int {
-        return viewModel.getSampleCount(for: sensor)
+        switch sensor {
+        case .eeg:
+            return 250
+        case .ppg:
+            return 50
+        case .accelerometer:
+            return 30
+        case .battery:
+            return 1
+        }
     }
     
     /// Generic한 바인딩을 생성하여 switch문 중복 제거
@@ -384,6 +399,63 @@ struct SimplifiedBatchDataCollectionView: View {
                 self.viewModel.setDurationText(newValue, for: sensor)
             }
         )
+    }
+    
+    /// 샘플 수 실시간 검증 및 자동 복원
+    private func validateAndFixSampleCount(_ newValue: String, for sensor: SensorType) {
+        let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 빈 값이면 잠시 허용 (사용자가 입력 중일 수 있음)
+        if trimmedValue.isEmpty {
+            return
+        }
+        
+        // 숫자가 아닌 문자가 포함되어 있으면 제거
+        let numbersOnly = trimmedValue.filter { $0.isNumber }
+        if numbersOnly != trimmedValue {
+            viewModel.setSampleCountText(numbersOnly, for: sensor)
+            return
+        }
+        
+        // 유효성 검사 실행
+        _ = viewModel.validateSampleCount(newValue, for: sensor)
+    }
+    
+    /// 시간 실시간 검증 및 자동 복원
+    private func validateAndFixDuration(_ newValue: String, for sensor: SensorType) {
+        let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 빈 값이면 잠시 허용 (사용자가 입력 중일 수 있음)
+        if trimmedValue.isEmpty {
+            return
+        }
+        
+        // 숫자가 아닌 문자가 포함되어 있으면 제거
+        let numbersOnly = trimmedValue.filter { $0.isNumber }
+        if numbersOnly != trimmedValue {
+            viewModel.setDurationText(numbersOnly, for: sensor)
+            return
+        }
+        
+        // 유효성 검사 실행
+        _ = viewModel.validateDuration(newValue, for: sensor)
+    }
+    
+    private func restoreEmptyFieldsToDefaults() {
+        for sensor in mainSensors {
+            // 샘플 수 텍스트 필드 확인
+            let sampleCountText = viewModel.getSampleCountText(for: sensor)
+            if sampleCountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                viewModel.setSampleCountText("\(defaultSampleCount(for: sensor))", for: sensor)
+            }
+            
+            // 시간 텍스트 필드 확인
+            let durationText = viewModel.getDurationText(for: sensor)
+            if durationText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let defaultDuration = sensor == .battery ? 60 : 1
+                viewModel.setDurationText("\(defaultDuration)", for: sensor)
+            }
+        }
     }
 }
 
