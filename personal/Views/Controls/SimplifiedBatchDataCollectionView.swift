@@ -156,7 +156,7 @@ struct SimplifiedBatchDataCollectionView: View {
     private var durationConfiguration: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("센서별 수집 시간")
+                Text(viewModel.selectedCollectionMode == .seconds ? "센서별 수집 시간 (초)" : "센서별 수집 시간 (분)")
                     .font(.subheadline)
                     .fontWeight(.medium)
                 
@@ -176,7 +176,11 @@ struct SimplifiedBatchDataCollectionView: View {
             }
             
             ForEach(mainSensors, id: \.self) { sensor in
-                sensorDurationRow(for: sensor)
+                if viewModel.selectedCollectionMode == .seconds {
+                    sensorSecondsRow(for: sensor)
+                } else {
+                    sensorMinutesRow(for: sensor)
+                }
             }
         }
     }
@@ -212,7 +216,7 @@ struct SimplifiedBatchDataCollectionView: View {
         }
     }
     
-    private func sensorDurationRow(for sensor: SensorType) -> some View {
+    private func sensorSecondsRow(for sensor: SensorType) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("\(sensor.emoji) \(sensor.displayName)")
                 .font(.subheadline)
@@ -233,10 +237,41 @@ struct SimplifiedBatchDataCollectionView: View {
                         }
                     }
                     .onChange(of: durationBinding(for: sensor).wrappedValue) { newValue in
-                        validateAndFixDuration(newValue, for: sensor)
+                        validateAndFixSeconds(newValue, for: sensor)
                     }
                 
                 Text("초")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private func sensorMinutesRow(for sensor: SensorType) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(sensor.emoji) \(sensor.displayName)")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(colorForSensor(sensor))
+            
+            HStack {
+                TextField("예: 1", text: minutesBinding(for: sensor))
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .keyboardType(.numberPad)
+                    .focused($isTextFieldFocused)
+                    .disabled(viewModel.isMonitoringActive || bluetoothKit.isRecording)
+                    .opacity(viewModel.isMonitoringActive || bluetoothKit.isRecording ? 0.6 : 1.0)
+                    .onTapGesture {
+                        if viewModel.isMonitoringActive || bluetoothKit.isRecording {
+                            // 텍스트 필드 비활성화 상태에서는 포커스 해제만
+                            isTextFieldFocused = false
+                        }
+                    }
+                    .onChange(of: minutesBinding(for: sensor).wrappedValue) { newValue in
+                        validateAndFixMinutes(newValue, for: sensor)
+                    }
+                
+                Text("분")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -252,22 +287,10 @@ struct SimplifiedBatchDataCollectionView: View {
                 ForEach(mainSensors, id: \.self) { sensor in
                     SensorToggleButton(
                         sensor: sensor,
-                        isSelected: viewModel.isSensorSelected(sensor),
+                        isSelected: viewModel.selectedSensors.contains(sensor),
                         isDisabled: viewModel.isMonitoringActive
                     ) {
-                        if viewModel.isMonitoringActive {
-                            // 모니터링 중에는 경고 팝업 표시
-                            viewModel.updateSensorSelection([sensor])
-                        } else {
-                            // 모니터링 중이 아닐 때는 즉시 변경
-                            var newSelection = viewModel.selectedSensors
-                            if viewModel.isSensorSelected(sensor) {
-                                newSelection.remove(sensor)
-                            } else {
-                                newSelection.insert(sensor)
-                            }
-                            viewModel.updateSensorSelection(newSelection)
-                        }
+                        toggleSensorSelection(sensor)
                     }
                 }
             }
@@ -393,10 +416,22 @@ struct SimplifiedBatchDataCollectionView: View {
     private func durationBinding(for sensor: SensorType) -> Binding<String> {
         return Binding<String>(
             get: { 
-                self.viewModel.getDurationText(for: sensor)
+                self.viewModel.getSecondsText(for: sensor)
             },
             set: { newValue in
-                self.viewModel.setDurationText(newValue, for: sensor)
+                self.viewModel.setSecondsText(newValue, for: sensor)
+            }
+        )
+    }
+    
+    /// 분단위 바인딩을 생성합니다.
+    private func minutesBinding(for sensor: SensorType) -> Binding<String> {
+        return Binding<String>(
+            get: { 
+                self.viewModel.getMinutesText(for: sensor)
+            },
+            set: { newValue in
+                self.viewModel.setMinutesText(newValue, for: sensor)
             }
         )
     }
@@ -421,8 +456,8 @@ struct SimplifiedBatchDataCollectionView: View {
         _ = viewModel.validateSampleCount(newValue, for: sensor)
     }
     
-    /// 시간 실시간 검증 및 자동 복원
-    private func validateAndFixDuration(_ newValue: String, for sensor: SensorType) {
+    /// 시간(초) 실시간 검증 및 자동 복원
+    private func validateAndFixSeconds(_ newValue: String, for sensor: SensorType) {
         let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // 빈 값이면 잠시 허용 (사용자가 입력 중일 수 있음)
@@ -433,12 +468,32 @@ struct SimplifiedBatchDataCollectionView: View {
         // 숫자가 아닌 문자가 포함되어 있으면 제거
         let numbersOnly = trimmedValue.filter { $0.isNumber }
         if numbersOnly != trimmedValue {
-            viewModel.setDurationText(numbersOnly, for: sensor)
+            viewModel.setSecondsText(numbersOnly, for: sensor)
             return
         }
         
         // 유효성 검사 실행
-        _ = viewModel.validateDuration(newValue, for: sensor)
+        _ = viewModel.validateSeconds(newValue, for: sensor)
+    }
+    
+    /// 분 실시간 검증 및 자동 복원
+    private func validateAndFixMinutes(_ newValue: String, for sensor: SensorType) {
+        let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 빈 값이면 잠시 허용 (사용자가 입력 중일 수 있음)
+        if trimmedValue.isEmpty {
+            return
+        }
+        
+        // 숫자가 아닌 문자가 포함되어 있으면 제거
+        let numbersOnly = trimmedValue.filter { $0.isNumber }
+        if numbersOnly != trimmedValue {
+            viewModel.setMinutesText(numbersOnly, for: sensor)
+            return
+        }
+        
+        // 유효성 검사 실행
+        _ = viewModel.validateMinutes(newValue, for: sensor)
     }
     
     private func restoreEmptyFieldsToDefaults() {
@@ -449,13 +504,33 @@ struct SimplifiedBatchDataCollectionView: View {
                 viewModel.setSampleCountText("\(defaultSampleCount(for: sensor))", for: sensor)
             }
             
-            // 시간 텍스트 필드 확인
-            let durationText = viewModel.getDurationText(for: sensor)
-            if durationText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let defaultDuration = sensor == .battery ? 60 : 1
-                viewModel.setDurationText("\(defaultDuration)", for: sensor)
+            // 시간(초) 텍스트 필드 확인
+            let secondsText = viewModel.getSecondsText(for: sensor)
+            if secondsText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let defaultSeconds = sensor == .battery ? 60 : 1
+                viewModel.setSecondsText("\(defaultSeconds)", for: sensor)
+            }
+            
+            // 분 텍스트 필드 확인
+            let minutesText = viewModel.getMinutesText(for: sensor)
+            if minutesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                viewModel.setMinutesText("1", for: sensor)
             }
         }
+    }
+    
+    private func toggleSensorSelection(_ sensor: SensorType) {
+        // 모니터링 중이 아닐 때만 센서 선택 변경 가능
+        guard !viewModel.isMonitoringActive else { return }
+        
+        // 센서 선택/해제 토글
+        var newSelection = viewModel.selectedSensors
+        if newSelection.contains(sensor) {
+            newSelection.remove(sensor)
+        } else {
+            newSelection.insert(sensor)
+        }
+        viewModel.updateSensorSelection(newSelection)
     }
 }
 

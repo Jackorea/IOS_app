@@ -153,8 +153,8 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     }
     
     /// 기록 중에 선택된 센서를 업데이트합니다.
-    public func updateRecordingSensors() {
-        bluetoothKit.updateRecordingSensors()
+    public func updateRecordingSensors(_ selectedSensors: Set<SensorType>) {
+        bluetoothKit.updateRecordingSensors(selectedSensors)
     }
     
     // MARK: - Sensor Monitoring Control
@@ -274,10 +274,11 @@ extension BluetoothKitViewModel {
         // 값이 실제로 다를 때만 업데이트 (무한 루프 방지)
         guard accelerometerMode != mode else { return }
         accelerometerMode = mode
-        
-        // 배치 데이터 로거에도 모드 업데이트 전달
-        if let batchLogger = bluetoothKit.batchDataDelegate as? BatchDataConsoleLogger {
-            batchLogger.updateAccelerometerMode(mode)
-        }
+    }
+    
+    /// 배치 모니터링 상태가 변경되었을 때 호출
+    func bluetoothKit(_ kit: BluetoothKit, didUpdateBatchMonitoringState isActive: Bool) {
+        // BatchDataConfigurationViewModel이 있다면 상태 업데이트
+        // 이는 런타임에 동적으로 처리됨
     }
 } 

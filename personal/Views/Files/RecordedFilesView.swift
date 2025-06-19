@@ -8,7 +8,6 @@ import QuickLook
 struct RecordedFilesView: View {
     @ObservedObject var bluetoothKit: BluetoothKitViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var recordedFiles: [URL] = []
     @State private var selectedFileURL: URL?
     @State private var showingShareSheet = false
     @State private var showingQuickLook = false
@@ -17,7 +16,7 @@ struct RecordedFilesView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if recordedFiles.isEmpty {
+                if bluetoothKit.recordedFiles.isEmpty {
                     ContentUnavailableView(
                         "기록 파일 없음",
                         systemImage: "folder",
@@ -46,7 +45,7 @@ struct RecordedFilesView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    if !recordedFiles.isEmpty {
+                    if !bluetoothKit.recordedFiles.isEmpty {
                         Button(action: openInFiles) {
                             Image(systemName: "folder.badge.gearshape")
                         }
@@ -78,7 +77,7 @@ struct RecordedFilesView: View {
     }
     
     private var groupedFiles: [String: [URL]] {
-        Dictionary(grouping: recordedFiles) { url in
+        Dictionary(grouping: bluetoothKit.recordedFiles) { url in
             let fileName = url.lastPathComponent
             // Extract date from filename (assuming format: YYYYMMDD_HHMMSS_type.ext)
             if let dateStr = fileName.components(separatedBy: "_").first,
@@ -93,7 +92,7 @@ struct RecordedFilesView: View {
     }
     
     private var totalFileSize: String {
-        let totalBytes = recordedFiles.compactMap { url in
+        let totalBytes = bluetoothKit.recordedFiles.compactMap { url in
             try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64
         }.reduce(0, +)
         
@@ -104,12 +103,8 @@ struct RecordedFilesView: View {
     }
     
     private func refreshFiles() {
-        recordedFiles = bluetoothKit.recordedFiles.sorted { url1, url2 in
-            // Sort by modification date, newest first
-            let date1 = (try? FileManager.default.attributesOfItem(atPath: url1.path)[.modificationDate] as? Date) ?? Date.distantPast
-            let date2 = (try? FileManager.default.attributesOfItem(atPath: url2.path)[.modificationDate] as? Date) ?? Date.distantPast
-            return date1 > date2
-        }
+        // recordedFiles는 @Published 프로퍼티이므로 자동으로 업데이트됨
+        // 필요하다면 BluetoothKit에서 파일 목록을 새로고침하도록 요청
     }
     
     private func previewFile(_ url: URL) {
