@@ -534,29 +534,11 @@ public class BluetoothKit: @unchecked Sendable {
     
     /// Bluetooth 디바이스 스캔을 시작합니다.
     ///
-    /// 즉시 검증 가능한 조건들(블루투스 상태, 중복 스캔 등)은 throws로 처리하고,
-    /// 디바이스 발견 등 비동기 이벤트는 delegate로 알립니다.
-    ///
-    /// - Throws: 
-    ///   - `BluetoothKitError.bluetoothUnavailable`: 블루투스가 비활성화된 경우
-    ///   - `BluetoothKitError.alreadyScanning`: 이미 스캔 중인 경우
-    ///
     /// ## 예시
     /// ```swift
-    /// do {
-    ///     try bluetoothKit.startScanning()
-    ///     print("스캔 시작됨")
-    /// } catch {
-    ///     print("스캔 실패: \(error.localizedDescription)")
-    /// }
+    /// bluetoothKit.startScanning()
     /// ```
-    public func startScanning() throws {
-        guard !bluetoothManager.isScanning else {
-            throw BluetoothKitError.alreadyScanning
-        }
-        
-        // BluetoothManager의 startScanning이 내부적으로 상태를 체크하므로
-        // 여기서는 delegate를 통해 실패가 알려질 것임
+    public func startScanning() {
         bluetoothManager.startScanning()
     }
     
@@ -572,35 +554,15 @@ public class BluetoothKit: @unchecked Sendable {
     
     /// 특정 Bluetooth 디바이스에 연결합니다.
     ///
-    /// 즉시 검증 가능한 조건들은 throws로 처리하고,
-    /// 연결 완료/실패는 delegate로 알립니다.
-    ///
     /// - Parameter device: 연결할 디바이스
-    /// - Throws:
-    ///   - `BluetoothKitError.bluetoothUnavailable`: 블루투스가 비활성화된 경우
-    ///   - `BluetoothKitError.invalidDevice`: 유효하지 않은 디바이스인 경우
-    ///   - `BluetoothKitError.alreadyConnected`: 이미 디바이스에 연결된 경우
     ///
     /// ## 예시
     /// ```swift
-    /// do {
-    ///     try bluetoothKit.connect(to: device)
-    ///     print("연결 시도 시작")
-    /// } catch {
-    ///     print("연결 실패: \(error.localizedDescription)")
+    /// if let device = bluetoothKit.discoveredDevices.first(where: { $0.name.contains("LinkBand") }) {
+    ///     bluetoothKit.connect(to: device)
     /// }
     /// ```
-    public func connect(to device: BluetoothDevice) throws {
-        guard !device.name.isEmpty else {
-            throw BluetoothKitError.invalidDevice("Device name is empty")
-        }
-        
-        guard !bluetoothManager.isConnected else {
-            throw BluetoothKitError.alreadyConnected
-        }
-        
-        // BluetoothManager의 connect가 내부적으로 블루투스 상태를 체크하므로
-        // 여기서는 delegate를 통해 성공/실패가 알려질 것임
+    public func connect(to device: BluetoothDevice) {
         bluetoothManager.connect(to: device)
     }
     
@@ -619,31 +581,11 @@ public class BluetoothKit: @unchecked Sendable {
     
     /// 센서 데이터를 파일로 기록하기 시작합니다.
     ///
-    /// 즉시 검증 가능한 조건들은 throws로 처리하고,
-    /// 기록 시작/완료는 delegate로 알립니다.
-    ///
-    /// - Throws:
-    ///   - `BluetoothKitError.alreadyRecording`: 이미 기록 중인 경우
-    ///   - `BluetoothKitError.notConnected`: 디바이스에 연결되지 않은 경우
-    ///
     /// ## 예시
     /// ```swift
-    /// do {
-    ///     try bluetoothKit.startRecording()
-    ///     print("기록 시작")
-    /// } catch {
-    ///     print("기록 실패: \(error.localizedDescription)")
-    /// }
+    /// bluetoothKit.startRecording()
     /// ```
-    public func startRecording() throws {
-        guard !isRecording else {
-            throw BluetoothKitError.alreadyRecording
-        }
-        
-        guard bluetoothManager.isConnected else {
-            throw BluetoothKitError.notConnected
-        }
-        
+    public func startRecording() {
         // 현재 설정된 센서 타입들만 기록하도록 전달
         let selectedSensors = Set(dataCollectionConfigs.keys)
         dataRecorder.startRecording(with: selectedSensors)
@@ -651,37 +593,17 @@ public class BluetoothKit: @unchecked Sendable {
     
     /// 선택된 센서들과 함께 센서 데이터 기록을 시작합니다.
     ///
-    /// 즉시 검증 가능한 조건들은 throws로 처리하고,
-    /// 기록 시작/완료는 delegate로 알립니다.
-    ///
     /// - Parameter selectedSensors: 기록할 센서 타입들의 집합
-    /// - Throws:
-    ///   - `BluetoothKitError.alreadyRecording`: 이미 기록 중인 경우
-    ///   - `BluetoothKitError.notConnected`: 디바이스에 연결되지 않은 경우
-    ///   - `BluetoothKitError.invalidConfiguration`: 유효하지 않은 센서 설정인 경우
     ///
     /// ## 예시
     /// ```swift
-    /// do {
-    ///     try bluetoothKit.startRecording(with: [.eeg, .ppg])
-    ///     print("EEG, PPG 기록 시작")
-    /// } catch {
-    ///     print("기록 실패: \(error.localizedDescription)")
-    /// }
+    /// // EEG와 PPG만 기록
+    /// bluetoothKit.startRecording(with: [.eeg, .ppg])
+    /// 
+    /// // 모든 센서 기록
+    /// bluetoothKit.startRecording(with: [.eeg, .ppg, .accelerometer])
     /// ```
-    public func startRecording(with selectedSensors: Set<SensorType>) throws {
-        guard !isRecording else {
-            throw BluetoothKitError.alreadyRecording
-        }
-        
-        guard bluetoothManager.isConnected else {
-            throw BluetoothKitError.notConnected
-        }
-        
-        guard !selectedSensors.isEmpty else {
-            throw BluetoothKitError.invalidConfiguration("No sensors selected for recording")
-        }
-        
+    public func startRecording(with selectedSensors: Set<SensorType>) {
         dataRecorder.startRecording(with: selectedSensors)
     }
     

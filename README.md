@@ -1,6 +1,6 @@
 # BluetoothKit SDK
 
-A comprehensive, platform-agnostic Bluetooth Low Energy (BLE) SDK for connecting to sensor devices and collecting biomedical data.
+A comprehensive, platform-agnostic Bluetooth Low Energy (BLE) SDK for connecting to LinkBand sensor devices and collecting biomedical data.
 
 ## 🎯 Pure SDK Design
 
@@ -20,6 +20,136 @@ BluetoothKit is designed as a **pure data/logic SDK** without any UI dependencie
 - **Connection management**: Auto-reconnection and state monitoring
 - **Device discovery**: Scan and filter Bluetooth devices
 - **Configuration flexibility**: Customizable sample rates and device settings
+
+## 🏗️ Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "LinkBand Demo App (UI Layer)"
+        A[ContentView.swift] --> B[BluetoothKitViewModel]
+        A --> C[Views/]
+        C --> D[SensorData/]
+        C --> E[Controls/]
+        C --> F[StatusCard/]
+        C --> G[Files/]
+        
+        D --> D1[EEGDataCard]
+        D --> D2[PPGDataCard]
+        D --> D3[AccelerometerDataCard]
+        D --> D4[BatteryDataCard]
+        
+        E --> E1[ControlsView]
+        E --> E2[RecordingControlsView]
+        E --> E3[BatchDataCollectionView]
+        
+        F --> F1[EnhancedStatusCardView]
+        
+        G --> G1[RecordedFilesView]
+        G --> G2[FileRowView]
+    end
+    
+    subgraph "MVVM Bridge Layer"
+        B --> H[BluetoothKitViewModel]
+        H --> I[BatchDataConfigurationViewModel]
+    end
+    
+    subgraph "BluetoothKit SDK (Pure Logic)"
+        J[BluetoothKit.swift] --> K[BluetoothManager.swift]
+        J --> L[Models.swift]
+        J --> M[DataRecorder.swift]
+        J --> N[SensorDataParser.swift]
+        J --> O[BatchDataConfigurationManager.swift]
+        
+        L --> L1[BluetoothDevice]
+        L --> L2[EEGReading]
+        L --> L3[PPGReading]
+        L --> L4[AccelerometerReading]
+        L --> L5[BatteryReading]
+        L --> L6[ConnectionState]
+        L --> L7[SensorType]
+    end
+    
+    subgraph "System Layer"
+        P[CoreBluetooth]
+        Q[Foundation]
+    end
+    
+    H -.->|Delegates| J
+    I -.->|SDK Instance| J
+    K --> P
+    J --> Q
+    M --> Q
+    
+    style A fill:#e1f5fe
+    style J fill:#fff3e0
+    style H fill:#f3e5f5
+    style P fill:#fafafa
+```
+
+### Layer Responsibilities
+
+#### 🎨 **UI Layer (LinkBandDemo App)**
+- **Purpose**: SwiftUI views for sensor data visualization and device control
+- **Dependencies**: BluetoothKitViewModel only
+- **Key Files**:
+  - `ContentView.swift` - Main application interface
+  - `Views/SensorData/` - Real-time sensor data cards
+  - `Views/Controls/` - Device connection and recording controls
+  - `Views/StatusCard/` - Connection status and device discovery
+  - `Views/Files/` - Data file management interface
+
+#### 🔄 **MVVM Bridge Layer**
+- **Purpose**: Adapts pure SDK to SwiftUI with `@Published` properties
+- **Pattern**: ViewModel wraps SDK instance and implements delegates
+- **Key Files**:
+  - `BluetoothKitViewModel.swift` - Main SDK wrapper for UI binding
+  - `BatchDataConfigurationViewModel.swift` - Batch data collection UI state
+
+#### ⚙️ **SDK Layer (BluetoothKit)**
+- **Purpose**: Pure business logic, no UI dependencies
+- **Pattern**: Delegate-based callbacks for real-time updates
+- **Key Files**:
+  - `BluetoothKit.swift` - Main SDK interface and coordinator
+  - `BluetoothManager.swift` - CoreBluetooth connection management
+  - `Models.swift` - Data structures and protocols
+  - `DataRecorder.swift` - CSV file recording functionality
+  - `SensorDataParser.swift` - Raw Bluetooth data parsing
+  - `BatchDataConfigurationManager.swift` - Batch collection logic
+
+#### 🔌 **System Layer**
+- **CoreBluetooth**: iOS Bluetooth Low Energy framework
+- **Foundation**: Basic data types and file operations
+
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant UI as LinkBandDemo UI
+    participant VM as ViewModel
+    participant SDK as BluetoothKit
+    participant BLE as CoreBluetooth
+    
+    UI->>VM: User taps "Start Scanning"
+    VM->>SDK: startScanning()
+    SDK->>BLE: scanForPeripherals()
+    
+    BLE-->>SDK: didDiscover peripheral
+    SDK-->>VM: delegate didDiscoverDevice
+    VM-->>UI: @Published discoveredDevices updates
+    
+    UI->>VM: User selects device
+    VM->>SDK: connect(to: device)
+    SDK->>BLE: connect(peripheral)
+    
+    BLE-->>SDK: didConnect + service discovery
+    SDK-->>VM: delegate didUpdateConnectionState
+    VM-->>UI: @Published connectionState updates
+    
+    BLE-->>SDK: characteristic notifications (sensor data)
+    SDK->>SDK: parse raw data
+    SDK-->>VM: delegate didUpdateEEGReading
+    VM-->>UI: @Published latestEEGReading updates
+```
 
 ## 🚀 Quick Start
 
@@ -156,7 +286,7 @@ let bluetoothKit = BluetoothKit(configuration: config)
 
 ## 📱 UI Components (Separate from SDK)
 
-The main app includes example UI components that work with the BluetoothKit SDK:
+The LinkBandDemo app includes example UI components that work with the BluetoothKit SDK:
 
 - `EnhancedStatusCardView`: Complete connection status and control interface
 - `BatchDataCollectionView`: Configure and monitor batch data collection
@@ -175,12 +305,12 @@ BluetoothKit SDK (Pure Logic)
 ├── DataRecorder.swift         # CSV data recording
 └── SensorDataParser.swift     # Raw data parsing
 
-Personal App (UI Layer)
+LinkBandDemo App (UI Layer)
 ├── Views/StatusCard/          # UI components
 ├── Views/Controls/            # Batch collection controls
 ├── Views/SensorData/          # Data visualization
 ├── ContentView.swift          # Main app view
-└── personalApp.swift         # App entry point
+└── LinkBandDemoApp.swift      # App entry point
 ```
 
 ## 📊 Data Types
@@ -325,18 +455,18 @@ for file in files {
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd personal
+cd IOS_link_band_demo_app
 
 # Open in Xcode
-open personal.xcodeproj
+open LinkBandDemo.xcodeproj
 
 # Or build via command line
-xcodebuild -project personal.xcodeproj -scheme personal build
+xcodebuild -project LinkBandDemo.xcodeproj -scheme LinkBandDemo build
 ```
 
 ## 📚 Examples
 
-Check the `personal` app for complete implementation examples:
+Check the `LinkBandDemo` app for complete implementation examples:
 - Real-time sensor data visualization
 - Connection management UI
 - Data recording and playback
