@@ -54,6 +54,16 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
         }
     }
     
+    /// 현재 에러 메시지 (있는 경우)
+    @Published public var errorMessage: String = "" {
+        didSet {
+            hasError = !errorMessage.isEmpty
+        }
+    }
+    
+    /// 에러가 있는지 여부
+    @Published public var hasError: Bool = false
+    
     // MARK: - SDK Instance
     
     /// 실제 비즈니스 로직을 담당하는 BluetoothKit 인스턴스
@@ -81,7 +91,12 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     
     /// Bluetooth 디바이스 스캔을 시작합니다.
     public func startScanning() {
-        bluetoothKit.startScanning()
+        do {
+            try bluetoothKit.startScanning()
+            clearError()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
     
     /// Bluetooth 디바이스 스캔을 중지합니다.
@@ -91,7 +106,12 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     
     /// 특정 Bluetooth 디바이스에 연결합니다.
     public func connect(to device: BluetoothDevice) {
-        bluetoothKit.connect(to: device)
+        do {
+            try bluetoothKit.connect(to: device)
+            clearError()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
     
     /// 현재 연결된 디바이스에서 연결을 해제합니다.
@@ -101,7 +121,22 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     
     /// 센서 데이터를 파일로 기록하기 시작합니다.
     public func startRecording() {
-        bluetoothKit.startRecording()
+        do {
+            try bluetoothKit.startRecording()
+            clearError()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+    
+    /// 선택된 센서들과 함께 센서 데이터 기록을 시작합니다.
+    public func startRecording(with selectedSensors: Set<SensorType>) {
+        do {
+            try bluetoothKit.startRecording(with: selectedSensors)
+            clearError()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
     
     /// 센서 데이터 기록을 중지합니다.
@@ -197,6 +232,11 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
         isBluetoothDisabled = bluetoothKit.isBluetoothDisabled
         connectionState = bluetoothKit.connectionState
         accelerometerMode = bluetoothKit.accelerometerMode
+    }
+    
+    /// 에러 메시지를 클리어합니다.
+    public func clearError() {
+        errorMessage = ""
     }
 }
 

@@ -47,6 +47,13 @@ struct ContentView: View {
             } message: {
                 Text("센서 디바이스를 스캔하고 연결하려면 Bluetooth를 켜주세요.")
             }
+            .alert("오류", isPresented: $bluetoothKitViewModel.hasError) {
+                Button("확인") {
+                    bluetoothKitViewModel.clearError()
+                }
+            } message: {
+                Text(bluetoothKitViewModel.errorMessage)
+            }
             .sheet(isPresented: $showingRecordedFiles) {
                 RecordedFilesView(bluetoothKit: bluetoothKitViewModel)
             }

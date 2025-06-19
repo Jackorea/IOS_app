@@ -10,6 +10,11 @@ struct SimplifiedBatchDataCollectionView: View {
     @FocusState private var isTextFieldFocused: Bool
     @State private var showStopMonitoringAlert = false
     
+    // 개별 텍스트 필드 포커스 상태 추적
+    @FocusState private var focusedSampleCountField: SensorType?
+    @FocusState private var focusedSecondsField: SensorType?
+    @FocusState private var focusedMinutesField: SensorType?
+    
     // 주로 사용하는 센서들
     private let mainSensors: [SensorType] = [.eeg, .ppg, .accelerometer]
     
@@ -46,13 +51,51 @@ struct SimplifiedBatchDataCollectionView: View {
                 .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
         )
         .onTapGesture {
+            // 모든 포커스 해제
             isTextFieldFocused = false
+            focusedSampleCountField = nil
+            focusedSecondsField = nil
+            focusedMinutesField = nil
         }
         .onChange(of: isTextFieldFocused) { isFocused in
             // 포커스가 해제될 때 모든 텍스트 필드 검사하고 빈 값이면 기본값으로 복원
             if !isFocused {
                 restoreEmptyFieldsToDefaults()
             }
+        }
+        .onChange(of: focusedSampleCountField) { focusedSensor in
+            // 샘플 수 텍스트 필드의 포커스가 변경될 때
+            if focusedSensor == nil {
+                // 포커스가 해제되면 모든 샘플 수 필드 검증
+                for sensor in mainSensors {
+                    let currentValue = viewModel.getSampleCountText(for: sensor)
+                    validateAndFixSampleCount(currentValue, for: sensor)
+                }
+            }
+        }
+        .onChange(of: focusedSecondsField) { focusedSensor in
+            // 시간(초) 텍스트 필드의 포커스가 변경될 때
+            if focusedSensor == nil {
+                // 포커스가 해제되면 모든 시간(초) 필드 검증
+                for sensor in mainSensors {
+                    let currentValue = viewModel.getSecondsText(for: sensor)
+                    validateAndFixSeconds(currentValue, for: sensor)
+                }
+            }
+        }
+        .onChange(of: focusedMinutesField) { focusedSensor in
+            // 분 텍스트 필드의 포커스가 변경될 때
+            if focusedSensor == nil {
+                // 포커스가 해제되면 모든 분 필드 검증
+                for sensor in mainSensors {
+                    let currentValue = viewModel.getMinutesText(for: sensor)
+                    validateAndFixMinutes(currentValue, for: sensor)
+                }
+            }
+        }
+        .onAppear {
+            // 뷰가 나타날 때 모든 텍스트 필드가 기본값으로 초기화되었는지 확인
+            ensureAllFieldsHaveValues()
         }
         .alert("모니터링 중지 확인", isPresented: $showStopMonitoringAlert) {
             Button("기록 및 모니터링 중지", role: .destructive) {
@@ -196,17 +239,23 @@ struct SimplifiedBatchDataCollectionView: View {
                 TextField("예: \(defaultSampleCount(for: sensor))", text: sampleCountBinding(for: sensor))
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
-                    .focused($isTextFieldFocused)
+                    .focused($focusedSampleCountField, equals: sensor)
                     .disabled(viewModel.isMonitoringActive || bluetoothKit.isRecording)
                     .opacity(viewModel.isMonitoringActive || bluetoothKit.isRecording ? 0.6 : 1.0)
                     .onTapGesture {
                         if viewModel.isMonitoringActive || bluetoothKit.isRecording {
                             // 텍스트 필드 비활성화 상태에서는 포커스 해제만
-                            isTextFieldFocused = false
+                            focusedSampleCountField = nil
                         }
                     }
                     .onChange(of: sampleCountBinding(for: sensor).wrappedValue) { newValue in
                         validateAndFixSampleCount(newValue, for: sensor)
+                    }
+                    .onSubmit {
+                        // 엔터 키를 눌렀을 때도 검증
+                        let currentValue = viewModel.getSampleCountText(for: sensor)
+                        validateAndFixSampleCount(currentValue, for: sensor)
+                        focusedSampleCountField = nil
                     }
                 
                 Text("샘플")
@@ -227,17 +276,23 @@ struct SimplifiedBatchDataCollectionView: View {
                 TextField("예: 1", text: durationBinding(for: sensor))
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
-                    .focused($isTextFieldFocused)
+                    .focused($focusedSecondsField, equals: sensor)
                     .disabled(viewModel.isMonitoringActive || bluetoothKit.isRecording)
                     .opacity(viewModel.isMonitoringActive || bluetoothKit.isRecording ? 0.6 : 1.0)
                     .onTapGesture {
                         if viewModel.isMonitoringActive || bluetoothKit.isRecording {
                             // 텍스트 필드 비활성화 상태에서는 포커스 해제만
-                            isTextFieldFocused = false
+                            focusedSecondsField = nil
                         }
                     }
                     .onChange(of: durationBinding(for: sensor).wrappedValue) { newValue in
                         validateAndFixSeconds(newValue, for: sensor)
+                    }
+                    .onSubmit {
+                        // 엔터 키를 눌렀을 때도 검증
+                        let currentValue = viewModel.getSecondsText(for: sensor)
+                        validateAndFixSeconds(currentValue, for: sensor)
+                        focusedSecondsField = nil
                     }
                 
                 Text("초")
@@ -258,17 +313,23 @@ struct SimplifiedBatchDataCollectionView: View {
                 TextField("예: 1", text: minutesBinding(for: sensor))
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
-                    .focused($isTextFieldFocused)
+                    .focused($focusedMinutesField, equals: sensor)
                     .disabled(viewModel.isMonitoringActive || bluetoothKit.isRecording)
                     .opacity(viewModel.isMonitoringActive || bluetoothKit.isRecording ? 0.6 : 1.0)
                     .onTapGesture {
                         if viewModel.isMonitoringActive || bluetoothKit.isRecording {
                             // 텍스트 필드 비활성화 상태에서는 포커스 해제만
-                            isTextFieldFocused = false
+                            focusedMinutesField = nil
                         }
                     }
                     .onChange(of: minutesBinding(for: sensor).wrappedValue) { newValue in
                         validateAndFixMinutes(newValue, for: sensor)
+                    }
+                    .onSubmit {
+                        // 엔터 키를 눌렀을 때도 검증
+                        let currentValue = viewModel.getMinutesText(for: sensor)
+                        validateAndFixMinutes(currentValue, for: sensor)
+                        focusedMinutesField = nil
                     }
                 
                 Text("분")
@@ -440,15 +501,30 @@ struct SimplifiedBatchDataCollectionView: View {
     private func validateAndFixSampleCount(_ newValue: String, for sensor: SensorType) {
         let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // 빈 값이면 잠시 허용 (사용자가 입력 중일 수 있음)
+        // 빈 값이면 즉시 기본값으로 복원
         if trimmedValue.isEmpty {
+            let defaultValue = defaultSampleCount(for: sensor)
+            viewModel.setSampleCountText("\(defaultValue)", for: sensor)
             return
         }
         
         // 숫자가 아닌 문자가 포함되어 있으면 제거
         let numbersOnly = trimmedValue.filter { $0.isNumber }
         if numbersOnly != trimmedValue {
-            viewModel.setSampleCountText(numbersOnly, for: sensor)
+            // 숫자가 없으면 기본값으로 복원
+            if numbersOnly.isEmpty {
+                let defaultValue = defaultSampleCount(for: sensor)
+                viewModel.setSampleCountText("\(defaultValue)", for: sensor)
+            } else {
+                viewModel.setSampleCountText(numbersOnly, for: sensor)
+            }
+            return
+        }
+        
+        // 0으로만 이루어져 있으면 기본값으로 복원
+        if numbersOnly.allSatisfy({ $0 == "0" }) {
+            let defaultValue = defaultSampleCount(for: sensor)
+            viewModel.setSampleCountText("\(defaultValue)", for: sensor)
             return
         }
         
@@ -460,15 +536,30 @@ struct SimplifiedBatchDataCollectionView: View {
     private func validateAndFixSeconds(_ newValue: String, for sensor: SensorType) {
         let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // 빈 값이면 잠시 허용 (사용자가 입력 중일 수 있음)
+        // 빈 값이면 즉시 기본값으로 복원
         if trimmedValue.isEmpty {
+            let defaultValue = sensor == .battery ? 60 : 1
+            viewModel.setSecondsText("\(defaultValue)", for: sensor)
             return
         }
         
         // 숫자가 아닌 문자가 포함되어 있으면 제거
         let numbersOnly = trimmedValue.filter { $0.isNumber }
         if numbersOnly != trimmedValue {
-            viewModel.setSecondsText(numbersOnly, for: sensor)
+            // 숫자가 없으면 기본값으로 복원
+            if numbersOnly.isEmpty {
+                let defaultValue = sensor == .battery ? 60 : 1
+                viewModel.setSecondsText("\(defaultValue)", for: sensor)
+            } else {
+                viewModel.setSecondsText(numbersOnly, for: sensor)
+            }
+            return
+        }
+        
+        // 0으로만 이루어져 있으면 기본값으로 복원
+        if numbersOnly.allSatisfy({ $0 == "0" }) {
+            let defaultValue = sensor == .battery ? 60 : 1
+            viewModel.setSecondsText("\(defaultValue)", for: sensor)
             return
         }
         
@@ -480,15 +571,27 @@ struct SimplifiedBatchDataCollectionView: View {
     private func validateAndFixMinutes(_ newValue: String, for sensor: SensorType) {
         let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // 빈 값이면 잠시 허용 (사용자가 입력 중일 수 있음)
+        // 빈 값이면 즉시 기본값으로 복원
         if trimmedValue.isEmpty {
+            viewModel.setMinutesText("1", for: sensor)
             return
         }
         
         // 숫자가 아닌 문자가 포함되어 있으면 제거
         let numbersOnly = trimmedValue.filter { $0.isNumber }
         if numbersOnly != trimmedValue {
-            viewModel.setMinutesText(numbersOnly, for: sensor)
+            // 숫자가 없으면 기본값으로 복원
+            if numbersOnly.isEmpty {
+                viewModel.setMinutesText("1", for: sensor)
+            } else {
+                viewModel.setMinutesText(numbersOnly, for: sensor)
+            }
+            return
+        }
+        
+        // 0으로만 이루어져 있으면 기본값으로 복원
+        if numbersOnly.allSatisfy({ $0 == "0" }) {
+            viewModel.setMinutesText("1", for: sensor)
             return
         }
         
@@ -531,6 +634,29 @@ struct SimplifiedBatchDataCollectionView: View {
             newSelection.insert(sensor)
         }
         viewModel.updateSensorSelection(newSelection)
+    }
+    
+    private func ensureAllFieldsHaveValues() {
+        for sensor in mainSensors {
+            // 샘플 수 텍스트 필드 확인
+            let sampleCountText = viewModel.getSampleCountText(for: sensor)
+            if sampleCountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                viewModel.setSampleCountText("\(defaultSampleCount(for: sensor))", for: sensor)
+            }
+            
+            // 시간(초) 텍스트 필드 확인
+            let secondsText = viewModel.getSecondsText(for: sensor)
+            if secondsText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let defaultSeconds = sensor == .battery ? 60 : 1
+                viewModel.setSecondsText("\(defaultSeconds)", for: sensor)
+            }
+            
+            // 분 텍스트 필드 확인
+            let minutesText = viewModel.getMinutesText(for: sensor)
+            if minutesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                viewModel.setMinutesText("1", for: sensor)
+            }
+        }
     }
 }
 
