@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  personal
+//  LinkBandDemo
 //
 //  BluetoothKit 기능을 시연하는 향상된 예제 앱
 //

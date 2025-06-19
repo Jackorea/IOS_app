@@ -1,13 +1,13 @@
 //
-//  personalUITestsLaunchTests.swift
-//  personalUITests
+//  LinkBandDemoUITestsLaunchTests.swift
+//  LinkBandDemoUITests
 //
 //  Created by Jack Ahn on 5/19/25.
 //
 
 import XCTest
 
-final class personalUITestsLaunchTests: XCTestCase {
+final class LinkBandDemoUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

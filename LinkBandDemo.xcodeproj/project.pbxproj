@@ -28,38 +28,25 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		492F1F342DDB33FD00F2D26E /* personal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = personal.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		492F1F412DDB33FF00F2D26E /* personalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = personalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		492F1F4B2DDB33FF00F2D26E /* personalUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = personalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		492F1F342DDB33FD00F2D26E /* LinkBandDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LinkBandDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		492F1F412DDB33FF00F2D26E /* LinkBandDemoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LinkBandDemoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		492F1F4B2DDB33FF00F2D26E /* LinkBandDemoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LinkBandDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		492F1F822DDEEDC300F2D26E /* Exceptions for "personal" folder in "personal" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 492F1F332DDB33FD00F2D26E /* personal */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		492F1F362DDB33FD00F2D26E /* personal */ = {
+		492F1F362DDB33FD00F2D26E /* LinkBandDemo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				492F1F822DDEEDC300F2D26E /* Exceptions for "personal" folder in "personal" target */,
-			);
-			path = personal;
+			path = LinkBandDemo;
 			sourceTree = "<group>";
 		};
-		492F1F442DDB33FF00F2D26E /* personalTests */ = {
+		492F1F442DDB33FF00F2D26E /* LinkBandDemoTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = personalTests;
+			path = LinkBandDemoTests;
 			sourceTree = "<group>";
 		};
-		492F1F4E2DDB33FF00F2D26E /* personalUITests */ = {
+		492F1F4E2DDB33FF00F2D26E /* LinkBandDemoUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = personalUITests;
+			path = LinkBandDemoUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -93,9 +80,9 @@
 		492F1F2B2DDB33FD00F2D26E = {
 			isa = PBXGroup;
 			children = (
-				492F1F362DDB33FD00F2D26E /* personal */,
-				492F1F442DDB33FF00F2D26E /* personalTests */,
-				492F1F4E2DDB33FF00F2D26E /* personalUITests */,
+				492F1F362DDB33FD00F2D26E /* LinkBandDemo */,
+				492F1F442DDB33FF00F2D26E /* LinkBandDemoTests */,
+				492F1F4E2DDB33FF00F2D26E /* LinkBandDemoUITests */,
 				49AD9C802DE82BD300547999 /* Frameworks */,
 				492F1F352DDB33FD00F2D26E /* Products */,
 			);
@@ -104,9 +91,9 @@
 		492F1F352DDB33FD00F2D26E /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				492F1F342DDB33FD00F2D26E /* personal.app */,
-				492F1F412DDB33FF00F2D26E /* personalTests.xctest */,
-				492F1F4B2DDB33FF00F2D26E /* personalUITests.xctest */,
+				492F1F342DDB33FD00F2D26E /* LinkBandDemo.app */,
+				492F1F412DDB33FF00F2D26E /* LinkBandDemoTests.xctest */,
+				492F1F4B2DDB33FF00F2D26E /* LinkBandDemoUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -121,32 +108,31 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		492F1F332DDB33FD00F2D26E /* personal */ = {
+		492F1F332DDB33FD00F2D26E /* LinkBandDemo */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 492F1F552DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "personal" */;
+			buildConfigurationList = 492F1F552DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "LinkBandDemo" */;
 			buildPhases = (
 				492F1F302DDB33FD00F2D26E /* Sources */,
 				492F1F312DDB33FD00F2D26E /* Frameworks */,
-				492F1F322DDB33FD00F2D26E /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				492F1F362DDB33FD00F2D26E /* personal */,
+				492F1F362DDB33FD00F2D26E /* LinkBandDemo */,
 			);
-			name = personal;
+			name = LinkBandDemo;
 			packageProductDependencies = (
 				49B69E252DF81B7700A93A52 /* BluetoothKit */,
 			);
 			productName = personal;
-			productReference = 492F1F342DDB33FD00F2D26E /* personal.app */;
+			productReference = 492F1F342DDB33FD00F2D26E /* LinkBandDemo.app */;
 			productType = "com.apple.product-type.application";
 		};
-		492F1F402DDB33FF00F2D26E /* personalTests */ = {
+		492F1F402DDB33FF00F2D26E /* LinkBandDemoTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 492F1F582DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "personalTests" */;
+			buildConfigurationList = 492F1F582DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "LinkBandDemoTests" */;
 			buildPhases = (
 				492F1F3D2DDB33FF00F2D26E /* Sources */,
 				492F1F3E2DDB33FF00F2D26E /* Frameworks */,
@@ -158,18 +144,18 @@
 				492F1F432DDB33FF00F2D26E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				492F1F442DDB33FF00F2D26E /* personalTests */,
+				492F1F442DDB33FF00F2D26E /* LinkBandDemoTests */,
 			);
-			name = personalTests;
+			name = LinkBandDemoTests;
 			packageProductDependencies = (
 			);
 			productName = personalTests;
-			productReference = 492F1F412DDB33FF00F2D26E /* personalTests.xctest */;
+			productReference = 492F1F412DDB33FF00F2D26E /* LinkBandDemoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		492F1F4A2DDB33FF00F2D26E /* personalUITests */ = {
+		492F1F4A2DDB33FF00F2D26E /* LinkBandDemoUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 492F1F5B2DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "personalUITests" */;
+			buildConfigurationList = 492F1F5B2DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "LinkBandDemoUITests" */;
 			buildPhases = (
 				492F1F472DDB33FF00F2D26E /* Sources */,
 				492F1F482DDB33FF00F2D26E /* Frameworks */,
@@ -181,13 +167,13 @@
 				492F1F4D2DDB33FF00F2D26E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				492F1F4E2DDB33FF00F2D26E /* personalUITests */,
+				492F1F4E2DDB33FF00F2D26E /* LinkBandDemoUITests */,
 			);
-			name = personalUITests;
+			name = LinkBandDemoUITests;
 			packageProductDependencies = (
 			);
 			productName = personalUITests;
-			productReference = 492F1F4B2DDB33FF00F2D26E /* personalUITests.xctest */;
+			productReference = 492F1F4B2DDB33FF00F2D26E /* LinkBandDemoUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -213,7 +199,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 492F1F2F2DDB33FD00F2D26E /* Build configuration list for PBXProject "personal" */;
+			buildConfigurationList = 492F1F2F2DDB33FD00F2D26E /* Build configuration list for PBXProject "LinkBandDemo" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -230,21 +216,14 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				492F1F332DDB33FD00F2D26E /* personal */,
-				492F1F402DDB33FF00F2D26E /* personalTests */,
-				492F1F4A2DDB33FF00F2D26E /* personalUITests */,
+				492F1F332DDB33FD00F2D26E /* LinkBandDemo */,
+				492F1F402DDB33FF00F2D26E /* LinkBandDemoTests */,
+				492F1F4A2DDB33FF00F2D26E /* LinkBandDemoUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		492F1F322DDB33FD00F2D26E /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		492F1F3F2DDB33FF00F2D26E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -288,12 +267,12 @@
 /* Begin PBXTargetDependency section */
 		492F1F432DDB33FF00F2D26E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 492F1F332DDB33FD00F2D26E /* personal */;
+			target = 492F1F332DDB33FD00F2D26E /* LinkBandDemo */;
 			targetProxy = 492F1F422DDB33FF00F2D26E /* PBXContainerItemProxy */;
 		};
 		492F1F4D2DDB33FF00F2D26E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 492F1F332DDB33FD00F2D26E /* personal */;
+			target = 492F1F332DDB33FD00F2D26E /* LinkBandDemo */;
 			targetProxy = 492F1F4C2DDB33FF00F2D26E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -428,7 +407,7 @@
 				DEVELOPMENT_TEAM = 6HS3H7Q8F3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = personal/Info.plist;
+				INFOPLIST_FILE = LinkBandDemo/Info.plist;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "This app uses Bluetooth to connect to biomedical sensor devices for real-time data collection including EEG, PPG, and accelerometer data.";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "This app uses Bluetooth to connect to biomedical sensor devices for real-time data collection.";
@@ -461,7 +440,7 @@
 				DEVELOPMENT_TEAM = 6HS3H7Q8F3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = personal/Info.plist;
+				INFOPLIST_FILE = LinkBandDemo/Info.plist;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "This app uses Bluetooth to connect to biomedical sensor devices for real-time data collection including EEG, PPG, and accelerometer data.";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "This app uses Bluetooth to connect to biomedical sensor devices for real-time data collection.";
@@ -493,12 +472,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Jack.personalTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "Jack. LinkBandDemoTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/personal.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/personal";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LinkBandDemo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LinkBandDemo";
 			};
 			name = Debug;
 		};
@@ -511,12 +490,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Jack.personalTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "Jack. LinkBandDemoTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/personal.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/personal";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LinkBandDemo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LinkBandDemo";
 			};
 			name = Release;
 		};
@@ -555,7 +534,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		492F1F2F2DDB33FD00F2D26E /* Build configuration list for PBXProject "personal" */ = {
+		492F1F2F2DDB33FD00F2D26E /* Build configuration list for PBXProject "LinkBandDemo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				492F1F532DDB33FF00F2D26E /* Debug */,
@@ -564,7 +543,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		492F1F552DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "personal" */ = {
+		492F1F552DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "LinkBandDemo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				492F1F562DDB33FF00F2D26E /* Debug */,
@@ -573,7 +552,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		492F1F582DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "personalTests" */ = {
+		492F1F582DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "LinkBandDemoTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				492F1F592DDB33FF00F2D26E /* Debug */,
@@ -582,7 +561,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		492F1F5B2DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "personalUITests" */ = {
+		492F1F5B2DDB33FF00F2D26E /* Build configuration list for PBXNativeTarget "LinkBandDemoUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				492F1F5C2DDB33FF00F2D26E /* Debug */,
