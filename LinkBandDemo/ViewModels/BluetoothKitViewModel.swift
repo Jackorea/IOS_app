@@ -81,32 +81,32 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     
     /// Bluetooth 디바이스 스캔을 시작합니다.
     public func startScanning() {
-        bluetoothKit.startScanning()
+        try? bluetoothKit.startScanning()
     }
     
     /// Bluetooth 디바이스 스캔을 중지합니다.
     public func stopScanning() {
-        bluetoothKit.stopScanning()
+        try? bluetoothKit.stopScanning()
     }
     
     /// 특정 Bluetooth 디바이스에 연결합니다.
     public func connect(to device: BluetoothDevice) {
-        bluetoothKit.connect(to: device)
+        try? bluetoothKit.connect(to: device)
     }
     
     /// 현재 연결된 디바이스에서 연결을 해제합니다.
     public func disconnect() {
-        bluetoothKit.disconnect()
+        try? bluetoothKit.disconnect()
     }
     
     /// 센서 데이터를 파일로 기록하기 시작합니다.
     public func startRecording() {
-        bluetoothKit.startRecording()
+        try? bluetoothKit.startRecording()
     }
     
     /// 센서 데이터 기록을 중지합니다.
     public func stopRecording() {
-        bluetoothKit.stopRecording()
+        try? bluetoothKit.stopRecording()
     }
     
     /// 기록이 저장되는 디렉토리를 가져옵니다.
@@ -127,51 +127,51 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     
     /// 자동 재연결 기능을 설정합니다.
     public func setAutoReconnect(enabled: Bool) {
-        bluetoothKit.setAutoReconnect(enabled: enabled)
+        try? bluetoothKit.setAutoReconnect(enabled: enabled)
     }
     
     // MARK: - Batch Data Collection Methods
     
     /// 시간 간격을 기준으로 배치 데이터 수집을 설정합니다.
     public func setDataCollection(timeInterval: TimeInterval, for sensorType: SensorType) {
-        bluetoothKit.setDataCollection(timeInterval: timeInterval, for: sensorType)
+        try? bluetoothKit.setDataCollection(timeInterval: timeInterval, for: sensorType)
     }
     
     /// 샘플 개수를 기준으로 배치 데이터 수집을 설정합니다.
     public func setDataCollection(sampleCount: Int, for sensorType: SensorType) {
-        bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensorType)
+        try? bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensorType)
     }
     
     /// 특정 센서의 배치 데이터 수집을 비활성화합니다.
     public func disableDataCollection(for sensorType: SensorType) {
-        bluetoothKit.disableDataCollection(for: sensorType)
+        try? bluetoothKit.disableDataCollection(for: sensorType)
     }
     
     /// 모든 센서의 배치 데이터 수집을 비활성화합니다.
     public func disableAllDataCollection() {
-        bluetoothKit.disableAllDataCollection()
+        try? bluetoothKit.disableAllDataCollection()
     }
     
     /// 기록 중에 선택된 센서를 업데이트합니다.
     public func updateRecordingSensors(_ selectedSensors: Set<SensorType>) {
-        bluetoothKit.updateRecordingSensors(selectedSensors)
+        try? bluetoothKit.updateRecordingSensors(selectedSensors)
     }
     
     // MARK: - Sensor Monitoring Control
     
     /// 센서 모니터링을 활성화합니다.
     public func enableMonitoring() {
-        bluetoothKit.enableMonitoring()
+        try? bluetoothKit.enableMonitoring()
     }
     
     /// 센서 모니터링을 비활성화합니다.
     public func disableMonitoring() {
-        bluetoothKit.disableMonitoring()
+        try? bluetoothKit.disableMonitoring()
     }
     
     /// 모니터링할 센서 타입을 설정합니다.
     public func setSelectedSensors(_ sensors: Set<SensorType>) {
-        bluetoothKit.setSelectedSensors(sensors)
+        try? bluetoothKit.setSelectedSensors(sensors)
     }
     
     /// 현재 모니터링 중인 센서 타입들을 반환합니다.

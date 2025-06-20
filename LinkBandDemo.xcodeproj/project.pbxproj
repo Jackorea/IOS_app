@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		49B69E262DF81B7700A93A52 /* BluetoothKit in Frameworks */ = {isa = PBXBuildFile; productRef = 49B69E252DF81B7700A93A52 /* BluetoothKit */; };
+		49B024AA2E0535E5009A5BA6 /* BluetoothKit in Frameworks */ = {isa = PBXBuildFile; productRef = 49B024A92E0535E5009A5BA6 /* BluetoothKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,7 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				49B69E262DF81B7700A93A52 /* BluetoothKit in Frameworks */,
+				49B024AA2E0535E5009A5BA6 /* BluetoothKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -124,7 +124,7 @@
 			);
 			name = LinkBandDemo;
 			packageProductDependencies = (
-				49B69E252DF81B7700A93A52 /* BluetoothKit */,
+				49B024A92E0535E5009A5BA6 /* BluetoothKit */,
 			);
 			productName = personal;
 			productReference = 492F1F342DDB33FD00F2D26E /* LinkBandDemo.app */;
@@ -209,7 +209,7 @@
 			mainGroup = 492F1F2B2DDB33FD00F2D26E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				49B69E242DF81B6800A93A52 /* XCRemoteSwiftPackageReference "test_spm" */,
+				49B024A82E0535C8009A5BA6 /* XCRemoteSwiftPackageReference "test_spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 492F1F352DDB33FD00F2D26E /* Products */;
@@ -573,7 +573,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		49B69E242DF81B6800A93A52 /* XCRemoteSwiftPackageReference "test_spm" */ = {
+		49B024A82E0535C8009A5BA6 /* XCRemoteSwiftPackageReference "test_spm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Jackorea/test_spm.git";
 			requirement = {
@@ -584,9 +584,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		49B69E252DF81B7700A93A52 /* BluetoothKit */ = {
+		49B024A92E0535E5009A5BA6 /* BluetoothKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 49B69E242DF81B6800A93A52 /* XCRemoteSwiftPackageReference "test_spm" */;
+			package = 49B024A82E0535C8009A5BA6 /* XCRemoteSwiftPackageReference "test_spm" */;
 			productName = BluetoothKit;
 		};
 /* End XCSwiftPackageProductDependency section */

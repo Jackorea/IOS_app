@@ -1,485 +1,423 @@
-# BluetoothKit SDK
+# LinkBand BluetoothKit SDK 🎯
 
-A comprehensive, platform-agnostic Bluetooth Low Energy (BLE) SDK for connecting to LinkBand sensor devices and collecting biomedical data.
+**실시간 생체신호 센서 데이터 수집을 위한 iOS SDK**
 
-## 🎯 Pure SDK Design
+LinkBand 센서 디바이스와 연결하여 EEG(뇌전도), PPG(심박수), 가속도계, 배터리 데이터를 실시간으로 수집하고 기록할 수 있는 SwiftUI 친화적 SDK입니다.
 
-BluetoothKit is designed as a **pure data/logic SDK** without any UI dependencies. This allows for:
+## ✨ 핵심 기능
 
-- **Framework independence**: No SwiftUI or UIKit dependencies
-- **Platform flexibility**: Works on iOS, macOS, and other Apple platforms  
-- **Custom UI integration**: Build your own UI components using the provided data
-- **Clean architecture**: Separation of concerns between data logic and presentation
+### 📡 **실시간 센서 데이터**
+- **EEG (뇌전도)**: 2채널 뇌파 데이터 + 전극 접촉 상태
+- **PPG (광전용적맥파)**: Red/IR 심박수 센서 데이터  
+- **가속도계**: 3축 움직임 데이터 (원시값/움직임 모드)
+- **배터리**: 실시간 배터리 레벨 모니터링
 
-## ✨ Features
+### 🎛️ **스마트한 데이터 수집**
+- **배치 수집**: 샘플 수 또는 시간 간격 기반 배치 데이터 수집
+- **센서별 설정**: 각 센서마다 독립적인 샘플링 설정
+- **실시간 모니터링**: 설정한 배치가 완성되면 즉시 알림
 
-- **Real-time sensor data**: EEG, PPG, Accelerometer, Battery monitoring
-- **Batch data collection**: Configure time-based or sample-count-based batch collection
-- **Delegate-based callbacks**: Receive data as it arrives from connected devices
-- **Automatic data recording**: Save sensor data to CSV files
-- **Connection management**: Auto-reconnection and state monitoring
-- **Device discovery**: Scan and filter Bluetooth devices
-- **Configuration flexibility**: Customizable sample rates and device settings
+### 📝 **자동 데이터 기록**
+- **CSV 파일 저장**: 센서별로 타임스탬프와 함께 저장
+- **파일 관리**: 저장된 파일 목록 조회 및 공유
+- **선택적 기록**: 원하는 센서만 선택해서 기록
 
-## 🏗️ Architecture Overview
+### 🔄 **안정적인 연결 관리**
+- **자동 재연결**: 연결이 끊어져도 자동으로 재연결 시도
+- **디바이스 스캔**: 주변 LinkBand 디바이스 자동 발견
+- **연결 상태 모니터링**: 실시간 연결 상태 추적
+
+## 🏗️ SDK 아키텍처
 
 ```mermaid
-graph TB
-    subgraph "LinkBand Demo App (UI Layer)"
-        A[ContentView.swift] --> B[BluetoothKitViewModel]
-        A --> C[Views/]
-        C --> D[SensorData/]
-        C --> E[Controls/]
-        C --> F[StatusCard/]
-        C --> G[Files/]
-        
-        D --> D1[EEGDataCard]
-        D --> D2[PPGDataCard]
-        D --> D3[AccelerometerDataCard]
-        D --> D4[BatteryDataCard]
-        
-        E --> E1[ControlsView]
-        E --> E2[RecordingControlsView]
-        E --> E3[BatchDataCollectionView]
-        
-        F --> F1[EnhancedStatusCardView]
-        
-        G --> G1[RecordedFilesView]
-        G --> G2[FileRowView]
+graph LR
+    subgraph "앱 개발자가 사용하는 것들 📱"
+        A[BluetoothKitViewModel<br/>메인 SDK 래퍼] 
+        B[BatchDataConfigurationViewModel<br/>배치 설정 전용]
+        C[SDK 데이터 타입들<br/>EEGReading, PPGReading 등]
+        D[SDK 열거형들<br/>SensorType, ConnectionState 등]
     end
     
-    subgraph "MVVM Bridge Layer"
-        B --> H[BluetoothKitViewModel]
-        H --> I[BatchDataConfigurationViewModel]
+    subgraph "SDK 내부 (몰라도 됨) ⚙️"
+        E[BluetoothKit<br/>핵심 SDK]
+        F[BluetoothManager<br/>저수준 BLE 통신]
+        G[DataRecorder<br/>파일 저장]
+        H[SensorDataParser<br/>데이터 파싱]
     end
     
-    subgraph "BluetoothKit SDK (Pure Logic)"
-        J[BluetoothKit.swift] --> K[BluetoothManager.swift]
-        J --> L[Models.swift]
-        J --> M[DataRecorder.swift]
-        J --> N[SensorDataParser.swift]
-        J --> O[BatchDataConfigurationManager.swift]
-        
-        L --> L1[BluetoothDevice]
-        L --> L2[EEGReading]
-        L --> L3[PPGReading]
-        L --> L4[AccelerometerReading]
-        L --> L5[BatteryReading]
-        L --> L6[ConnectionState]
-        L --> L7[SensorType]
-    end
-    
-    subgraph "System Layer"
-        P[CoreBluetooth]
-        Q[Foundation]
-    end
-    
-    H -.->|Delegates| J
-    I -.->|SDK Instance| J
-    K --> P
-    J --> Q
-    M --> Q
+    A --> E
+    B --> E
+    E --> F
+    E --> G
+    E --> H
     
     style A fill:#e1f5fe
-    style J fill:#fff3e0
-    style H fill:#f3e5f5
-    style P fill:#fafafa
+    style B fill:#e1f5fe
+    style C fill:#f3e5f5
+    style D fill:#f3e5f5
+    style E fill:#fff3e0
 ```
 
-### Layer Responsibilities
+### 🎯 **앱 개발자 관점에서 필요한 것들**
 
-#### 🎨 **UI Layer (LinkBandDemo App)**
-- **Purpose**: SwiftUI views for sensor data visualization and device control
-- **Dependencies**: BluetoothKitViewModel only
-- **Key Files**:
-  - `ContentView.swift` - Main application interface
-  - `Views/SensorData/` - Real-time sensor data cards
-  - `Views/Controls/` - Device connection and recording controls
-  - `Views/StatusCard/` - Connection status and device discovery
-  - `Views/Files/` - Data file management interface
+1. **ViewModels**: SwiftUI와 SDK를 연결하는 어댑터
+2. **데이터 타입들**: 센서 데이터를 담는 구조체들  
+3. **열거형들**: 센서 종류, 연결 상태 등을 나타내는 타입들
+4. **델리게이트 프로토콜**: 배치 데이터 수신이 필요한 경우만
 
-#### 🔄 **MVVM Bridge Layer**
-- **Purpose**: Adapts pure SDK to SwiftUI with `@Published` properties
-- **Pattern**: ViewModel wraps SDK instance and implements delegates
-- **Key Files**:
-  - `BluetoothKitViewModel.swift` - Main SDK wrapper for UI binding
-  - `BatchDataConfigurationViewModel.swift` - Batch data collection UI state
+## 🚀 빠른 시작
 
-#### ⚙️ **SDK Layer (BluetoothKit)**
-- **Purpose**: Pure business logic, no UI dependencies
-- **Pattern**: Delegate-based callbacks for real-time updates
-- **Key Files**:
-  - `BluetoothKit.swift` - Main SDK interface and coordinator
-  - `BluetoothManager.swift` - CoreBluetooth connection management
-  - `Models.swift` - Data structures and protocols
-  - `DataRecorder.swift` - CSV file recording functionality
-  - `SensorDataParser.swift` - Raw Bluetooth data parsing
-  - `BatchDataConfigurationManager.swift` - Batch collection logic
-
-#### 🔌 **System Layer**
-- **CoreBluetooth**: iOS Bluetooth Low Energy framework
-- **Foundation**: Basic data types and file operations
-
-### Data Flow
-
-```mermaid
-sequenceDiagram
-    participant UI as LinkBandDemo UI
-    participant VM as ViewModel
-    participant SDK as BluetoothKit
-    participant BLE as CoreBluetooth
-    
-    UI->>VM: User taps "Start Scanning"
-    VM->>SDK: startScanning()
-    SDK->>BLE: scanForPeripherals()
-    
-    BLE-->>SDK: didDiscover peripheral
-    SDK-->>VM: delegate didDiscoverDevice
-    VM-->>UI: @Published discoveredDevices updates
-    
-    UI->>VM: User selects device
-    VM->>SDK: connect(to: device)
-    SDK->>BLE: connect(peripheral)
-    
-    BLE-->>SDK: didConnect + service discovery
-    SDK-->>VM: delegate didUpdateConnectionState
-    VM-->>UI: @Published connectionState updates
-    
-    BLE-->>SDK: characteristic notifications (sensor data)
-    SDK->>SDK: parse raw data
-    SDK-->>VM: delegate didUpdateEEGReading
-    VM-->>UI: @Published latestEEGReading updates
-```
-
-## 🚀 Quick Start
-
-### 1. Basic Real-time Usage
-
-```swift
-import BluetoothKit
-
-class SensorDataHandler: BluetoothKitDelegate {
-    func bluetoothKit(_ kit: BluetoothKit, didReceiveEEGReading reading: EEGReading) {
-        print("EEG: CH1=\(reading.channel1)µV, CH2=\(reading.channel2)µV")
-    }
-    
-    func bluetoothKit(_ kit: BluetoothKit, didReceivePPGReading reading: PPGReading) {
-        print("PPG: Red=\(reading.red), IR=\(reading.ir)")
-    }
-    
-    func bluetoothKit(_ kit: BluetoothKit, didUpdateConnectionState state: ConnectionState) {
-        print("Connection state: \(state.description)")
-    }
-    
-    func bluetoothKit(_ kit: BluetoothKit, didDiscoverDevice device: BluetoothDevice) {
-        print("Found device: \(device.name)")
-    }
-    
-    // Implement other delegate methods as needed...
-}
-
-// Setup
-let handler = SensorDataHandler()
-let bluetoothKit = BluetoothKit()
-bluetoothKit.delegate = handler
-
-// Start scanning for devices
-bluetoothKit.startScanning()
-
-// Connect to a device (from discovered devices)
-if let device = bluetoothKit.discoveredDevices.first {
-    bluetoothKit.connect(to: device)
-}
-```
-
-### 2. Batch Data Collection
-
-```swift
-import BluetoothKit
-
-class BatchDataHandler: SensorBatchDataDelegate {
-    func didReceiveEEGBatch(_ readings: [EEGReading]) {
-        print("Received EEG batch with \(readings.count) samples")
-        // Process batch for FFT, filtering, etc.
-        processEEGBatch(readings)
-    }
-    
-    func didReceivePPGBatch(_ readings: [PPGReading]) {
-        print("Received PPG batch with \(readings.count) samples")
-        // Calculate heart rate from batch
-        calculateHeartRate(from: readings)
-    }
-    
-    func didReceiveAccelerometerBatch(_ readings: [AccelerometerReading]) {
-        print("Received accelerometer batch with \(readings.count) samples")
-        // Analyze motion patterns
-        analyzeMotion(readings)
-    }
-    
-    func didReceiveBatteryUpdate(_ reading: BatteryReading) {
-        print("Battery level: \(reading.level)%")
-    }
-}
-
-// Setup batch collection
-let batchHandler = BatchDataHandler()
-let bluetoothKit = BluetoothKit()
-bluetoothKit.batchDataDelegate = batchHandler
-
-// Configure batch collection
-// Time-based: collect every 0.5 seconds
-bluetoothKit.setDataCollection(timeInterval: 0.5, for: .eeg)
-
-// Sample-count-based: collect every 25 samples
-bluetoothKit.setDataCollection(sampleCount: 25, for: .ppg)
-
-// Disable specific sensor collection
-bluetoothKit.disableDataCollection(for: .accelerometer)
-
-// Disable all batch collection
-bluetoothKit.disableAllDataCollection()
-```
-
-### 3. SwiftUI Integration
+### 1️⃣ 기본 설정
 
 ```swift
 import SwiftUI
 import BluetoothKit
 
 struct ContentView: View {
-    @StateObject private var bluetoothKit = BluetoothKit()
-    @StateObject private var dataHandler = SensorDataHandler()
+    @StateObject private var bluetoothKit = BluetoothKitViewModel()
     
     var body: some View {
         VStack {
-            Text("Connection: \(bluetoothKit.connectionState.description)")
+            // 연결 상태 표시
+            Text(bluetoothKit.connectionStatusDescription)
             
-            Button("Start Scanning") {
-                bluetoothKit.startScanning()
+            // 스캔/연결 버튼
+            if bluetoothKit.isScanning {
+                Button("스캔 중지") { bluetoothKit.stopScanning() }
+            } else {
+                Button("스캔 시작") { bluetoothKit.startScanning() }
             }
             
-            List(bluetoothKit.discoveredDevices, id: \.id) { device in
-                Button("Connect to \(device.name)") {
+            // 발견된 디바이스 목록
+            ForEach(bluetoothKit.discoveredDevices, id: \.id) { device in
+                Button(device.name) {
                     bluetoothKit.connect(to: device)
                 }
             }
-        }
-        .onAppear {
-            bluetoothKit.delegate = dataHandler
         }
     }
 }
 ```
 
-### 4. Custom Configuration
+### 2️⃣ 실시간 센서 데이터 표시
 
 ```swift
-let config = SensorConfiguration(
-    eegSampleRate: 500.0,
-    ppgSampleRate: 100.0,
-    deviceNamePrefix: "MyDevice-",
-    autoReconnectEnabled: true
-)
-
-let bluetoothKit = BluetoothKit(configuration: config)
+struct SensorDataView: View {
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
+    
+    var body: some View {
+        VStack {
+            // EEG 데이터
+            if let eeg = bluetoothKit.latestEEGReading {
+                VStack {
+                    Text("🧠 EEG 데이터")
+                    HStack {
+                        Text("CH1: \(String(format: "%.1f", eeg.channel1))µV")
+                        Text("CH2: \(String(format: "%.1f", eeg.channel2))µV")
+                    }
+                    Text("전극 접촉: \(eeg.leadOff ? "❌" : "✅")")
+                }
+                .padding()
+                .background(Color.purple.opacity(0.1))
+                .cornerRadius(12)
+            }
+            
+            // PPG 데이터
+            if let ppg = bluetoothKit.latestPPGReading {
+                VStack {
+                    Text("❤️ PPG 데이터")
+                    HStack {
+                        Text("Red: \(ppg.red)")
+                        Text("IR: \(ppg.ir)")
+                    }
+                }
+                .padding()
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(12)
+            }
+            
+            // 가속도계 데이터
+            if let accel = bluetoothKit.latestAccelerometerReading {
+                VStack {
+                    Text("🏃‍♂️ 가속도계")
+                    HStack {
+                        Text("X: \(accel.x)")
+                        Text("Y: \(accel.y)")
+                        Text("Z: \(accel.z)")
+                    }
+                    
+                    // 모드 전환
+                    Picker("모드", selection: $bluetoothKit.accelerometerMode) {
+                        Text("원시값").tag(AccelerometerMode.raw)
+                        Text("움직임").tag(AccelerometerMode.motion)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                }
+                .padding()
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(12)
+            }
+            
+            // 배터리
+            if let battery = bluetoothKit.latestBatteryReading {
+                VStack {
+                    Text("🔋 배터리: \(battery.level)%")
+                    ProgressView(value: Double(battery.level), total: 100.0)
+                }
+                .padding()
+                .background(Color.green.opacity(0.1))
+                .cornerRadius(12)
+            }
+        }
+    }
+}
 ```
 
-## 📱 UI Components (Separate from SDK)
+### 3️⃣ 데이터 기록
 
-The LinkBandDemo app includes example UI components that work with the BluetoothKit SDK:
-
-- `EnhancedStatusCardView`: Complete connection status and control interface
-- `BatchDataCollectionView`: Configure and monitor batch data collection
-- `BatchDataStatsView`: Real-time statistics for batch data reception
-- `DataRateIndicator`: Visual indicators for sensor data reception
-
-These are provided as examples - you can build your own UI components using the SDK's published properties and delegate callbacks.
-
-## 🔧 Architecture
-
-```
-BluetoothKit SDK (Pure Logic)
-├── BluetoothKit.swift          # Main SDK interface
-├── BluetoothManager.swift      # Bluetooth connectivity
-├── Models.swift               # Data models & protocols
-├── DataRecorder.swift         # CSV data recording
-└── SensorDataParser.swift     # Raw data parsing
-
-LinkBandDemo App (UI Layer)
-├── Views/StatusCard/          # UI components
-├── Views/Controls/            # Batch collection controls
-├── Views/SensorData/          # Data visualization
-├── ContentView.swift          # Main app view
-└── LinkBandDemoApp.swift      # App entry point
-```
-
-## 📊 Data Types
-
-### EEG Reading
 ```swift
+struct RecordingControlView: View {
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
+    
+    var body: some View {
+        VStack {
+            // 기록 상태 표시
+            HStack {
+                if bluetoothKit.isRecording {
+                    Image(systemName: "record.circle.fill")
+                        .foregroundColor(.red)
+                    Text("기록 중")
+                        .foregroundColor(.red)
+                } else {
+                    Image(systemName: "record.circle")
+                        .foregroundColor(.gray)
+                    Text("기록 준비")
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // 기록 버튼
+            Button(bluetoothKit.isRecording ? "기록 중지" : "기록 시작") {
+                if bluetoothKit.isRecording {
+                    bluetoothKit.stopRecording()
+                } else {
+                    bluetoothKit.startRecording()
+                }
+            }
+            .disabled(!bluetoothKit.isConnected)
+            .buttonStyle(.borderedProminent)
+            .tint(bluetoothKit.isRecording ? .red : .blue)
+            
+            // 저장된 파일 개수
+            Text("저장된 파일: \(bluetoothKit.recordedFiles.count)개")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+    }
+}
+```
+
+### 4️⃣ 배치 데이터 수집 (고급)
+
+```swift
+struct BatchDataView: View {
+    @ObservedObject var bluetoothKit: BluetoothKitViewModel
+    @StateObject private var batchViewModel: BatchDataConfigurationViewModel
+    
+    init(bluetoothKit: BluetoothKitViewModel) {
+        self.bluetoothKit = bluetoothKit
+        self._batchViewModel = StateObject(wrappedValue: 
+            BatchDataConfigurationViewModel(bluetoothKit: bluetoothKit.sdkInstance)
+        )
+    }
+    
+    var body: some View {
+        VStack {
+            // 수집 모드 선택
+            Picker("수집 모드", selection: $batchViewModel.selectedCollectionMode) {
+                Text("샘플 수").tag(BatchDataConfigurationManager.CollectionMode.sampleCount)
+                Text("초 단위").tag(BatchDataConfigurationManager.CollectionMode.seconds)
+                Text("분 단위").tag(BatchDataConfigurationManager.CollectionMode.minutes)
+            }
+            .pickerStyle(SegmentedPickerStyle())
+            
+            // 센서별 설정
+            ForEach([SensorType.eeg, .ppg, .accelerometer], id: \.self) { sensor in
+                HStack {
+                    Text("\(sensor.emoji) \(sensor.displayName)")
+                    
+                    Spacer()
+                    
+                    // 샘플 수 설정 예시
+                    if batchViewModel.selectedCollectionMode == .sampleCount {
+                        TextField("샘플 수", text: .init(
+                            get: { batchViewModel.getSampleCountText(for: sensor) },
+                            set: { batchViewModel.setSampleCountText($0, for: sensor) }
+                        ))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .frame(width: 80)
+                        .keyboardType(.numberPad)
+                    }
+                }
+            }
+            
+            // 모니터링 제어
+            if batchViewModel.isMonitoringActive {
+                Button("모니터링 중지") {
+                    batchViewModel.stopMonitoring()
+                }
+                .buttonStyle(.bordered)
+                .tint(.red)
+            } else {
+                Button("모니터링 시작") {
+                    batchViewModel.startMonitoring()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(batchViewModel.selectedSensors.isEmpty)
+            }
+        }
+        .padding()
+    }
+}
+```
+
+## 📚 주요 데이터 타입
+
+### 센서 데이터
+```swift
+// EEG (뇌전도)
 struct EEGReading {
-    let channel1: Double    // µV
-    let channel2: Double    // µV  
-    let leadOff: Bool      // Connection status
-    let timestamp: Date
+    let channel1: Double        // CH1 전압 (µV)
+    let channel2: Double        // CH2 전압 (µV)
+    let ch1Raw: Int            // CH1 원시값
+    let ch2Raw: Int            // CH2 원시값
+    let leadOff: Bool          // 전극 접촉 상태
+    let timestamp: Date        // 타임스탬프
 }
-```
 
-### PPG Reading
-```swift
+// PPG (심박수)
 struct PPGReading {
-    let red: Int           // Red LED value
-    let ir: Int            // Infrared LED value
-    let timestamp: Date
+    let red: Int               // Red LED 값
+    let ir: Int                // IR LED 값  
+    let timestamp: Date        // 타임스탬프
 }
-```
 
-### Accelerometer Reading
-```swift
+// 가속도계
 struct AccelerometerReading {
-    let x: Int16           // X-axis
-    let y: Int16           // Y-axis
-    let z: Int16           // Z-axis
-    let timestamp: Date
+    let x: Int                 // X축 값
+    let y: Int                 // Y축 값
+    let z: Int                 // Z축 값
+    let timestamp: Date        // 타임스탬프
 }
-```
 
-### Battery Reading
-```swift
+// 배터리
 struct BatteryReading {
-    let level: UInt8       // 0-100%
-    let timestamp: Date
+    let level: Int             // 배터리 레벨 (0-100%)
+    let timestamp: Date        // 타임스탬프
 }
 ```
 
-## 🎛️ Batch Data Collection API
-
-The SDK provides powerful batch data collection capabilities:
-
-### Setting Up Batch Collection
-
+### 열거형
 ```swift
-// Time-based collection (recommended for consistent intervals)
-bluetoothKit.setDataCollection(timeInterval: 1.0, for: .eeg)  // Every 1 second
-bluetoothKit.setDataCollection(timeInterval: 0.5, for: .ppg)  // Every 0.5 seconds
+// 센서 타입
+enum SensorType: String, CaseIterable {
+    case eeg = "eeg"
+    case ppg = "ppg" 
+    case accelerometer = "accelerometer"
+    case battery = "battery"
+}
 
-// Sample-count-based collection (recommended for exact sample sizes)
-bluetoothKit.setDataCollection(sampleCount: 250, for: .eeg)        // Every 250 samples
-bluetoothKit.setDataCollection(sampleCount: 50, for: .ppg)         // Every 50 samples
-bluetoothKit.setDataCollection(sampleCount: 30, for: .accelerometer) // Every 30 samples
-```
+// 가속도계 모드
+enum AccelerometerMode: String, CaseIterable {
+    case raw = "raw"           // 원시값 모드
+    case motion = "motion"     // 움직임 모드 (중력 제거)
+}
 
-### Batch Collection Limits
-
-- **Time intervals**: 0.04 seconds (25ms) to 10.0 seconds
-- **Sample counts**: 1 to sensor-specific maximums
-  - EEG: up to 2500 samples (10 seconds at 250Hz)
-  - PPG: up to 500 samples (10 seconds at 50Hz)  
-  - Accelerometer: up to 300 samples (10 seconds at 30Hz)
-
-### Use Cases
-
-- **Real-time monitoring**: 0.1-0.5 second intervals for live feedback
-- **Signal analysis**: 1-2 second intervals for FFT and filtering
-- **Battery optimization**: 5-10 second intervals for longer operation
-- **Exact sample processing**: Use sample counts for algorithms requiring specific buffer sizes
-
-## 🔗 Delegate Protocols
-
-### Real-time Data Delegate
-
-Implement `BluetoothKitDelegate` to receive individual data points:
-
-```swift
-protocol BluetoothKitDelegate: AnyObject {
-    func bluetoothKit(_ kit: BluetoothKit, didReceiveEEGReading reading: EEGReading)
-    func bluetoothKit(_ kit: BluetoothKit, didReceivePPGReading reading: PPGReading)
-    func bluetoothKit(_ kit: BluetoothKit, didReceiveAccelerometerReading reading: AccelerometerReading)
-    func bluetoothKit(_ kit: BluetoothKit, didReceiveBatteryReading reading: BatteryReading)
-    func bluetoothKit(_ kit: BluetoothKit, didUpdateConnectionState state: ConnectionState)
-    func bluetoothKit(_ kit: BluetoothKit, didDiscoverDevice device: BluetoothDevice)
+// 연결 상태
+enum ConnectionState {
+    case disconnected          // 연결 안됨
+    case scanning             // 스캔 중
+    case connecting           // 연결 중
+    case connected            // 연결됨
+    case reconnecting         // 재연결 중
+    case failed               // 연결 실패
 }
 ```
 
-### Batch Data Delegate
+## 📂 데모 앱 구조
 
-Implement `SensorBatchDataDelegate` to receive data in batches:
-
-```swift
-protocol SensorBatchDataDelegate: AnyObject {
-    func didReceiveEEGBatch(_ readings: [EEGReading])
-    func didReceivePPGBatch(_ readings: [PPGReading])
-    func didReceiveAccelerometerBatch(_ readings: [AccelerometerReading])
-    func didReceiveBatteryUpdate(_ reading: BatteryReading)  // Individual updates only
-}
+```
+LinkBandDemo/
+├── ContentView.swift                 # 메인 화면
+├── ViewModels/                       # SDK 어댑터
+│   ├── BluetoothKitViewModel.swift   # 메인 ViewModel
+│   └── BatchDataConfigurationViewModel.swift  # 배치 설정
+└── Views/
+    ├── SensorData/                   # 센서 데이터 표시
+    │   ├── EEGDataCard.swift
+    │   ├── PPGDataCard.swift
+    │   ├── AccelerometerDataCard.swift
+    │   └── BatteryDataCard.swift
+    ├── Controls/                     # 제어 UI
+    │   ├── ControlsView.swift
+    │   ├── RecordingControlsView.swift
+    │   └── SimplifiedBatchDataCollectionView.swift
+    ├── StatusCard/                   # 연결 상태
+    │   └── EnhancedStatusCardView.swift
+    └── Files/                        # 파일 관리
+        ├── RecordedFilesView.swift
+        └── FileRowView.swift
 ```
 
-## 🎛️ Configuration Options
+## 🎯 사용자 플로우
 
-```swift
-struct SensorConfiguration {
-    let eegSampleRate: Double              // Hz (125, 250, 500, 1000)
-    let ppgSampleRate: Double              // Hz (25, 50, 100)
-    let accelerometerSampleRate: Double    // Hz (10, 30, 50, 100)
-    let deviceNamePrefix: String           // Device filter
-    let autoReconnectEnabled: Bool         // Auto-reconnection
-    let eegVoltageReference: Double        // Volts (2.5, 3.3, 5.0)
-    let eegGain: Double                   // Amplification (1, 2, 4, 6, 8, 12, 24)
-}
+1. **📱 앱 시작** → Bluetooth 상태 확인
+2. **🔍 디바이스 스캔** → LinkBand 디바이스 발견 및 목록 표시
+3. **🔗 디바이스 연결** → 선택한 디바이스에 연결
+4. **📊 실시간 데이터** → EEG, PPG, 가속도계, 배터리 데이터 실시간 표시
+5. **⚙️ 설정 조정** → 센서별 배치 수집 설정 (선택사항)
+6. **📝 데이터 기록** → 원하는 센서 데이터를 파일로 저장
+7. **📂 파일 관리** → 저장된 CSV 파일 조회, 공유, 삭제
+
+## 🛠️ 설치 및 요구사항
+
+### 요구사항
+- iOS 13.0+
+- Xcode 14.0+
+- Swift 5.7+
+
+### 설치
+1. 프로젝트에 `BluetoothKit` 폴더 추가
+2. `LinkBandDemo` 프로젝트 참조하여 ViewModels 구현
+3. `Info.plist`에 Bluetooth 권한 추가:
+```xml
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>센서 디바이스와 연결하여 생체신호 데이터를 수집합니다.</string>
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>센서 디바이스와 연결하여 생체신호 데이터를 수집합니다.</string>
 ```
 
-## 📝 Data Recording
+## 💡 개발 팁
 
-```swift
-// Start recording (automatic CSV file creation)
-bluetoothKit.startRecording()
+### ✅ **권장사항**
+- ViewModels를 사용해서 SDK와 UI 분리
+- `@Published` 프로퍼티로 실시간 UI 업데이트
+- 연결 상태를 항상 체크한 후 기능 사용
+- 자동 재연결 기능 활용으로 사용자 경험 향상
 
-// Stop recording
-bluetoothKit.stopRecording()
+### ⚠️ **주의사항**
+- 기록 중에는 센서 설정 변경 제한
+- 앱이 백그라운드로 가면 연결이 끊어질 수 있음
+- 배터리 소모를 고려해서 불필요한 센서는 비활성화
+- CSV 파일이 누적되므로 주기적인 정리 필요
 
-// Access recorded files
-let files = bluetoothKit.recordedFiles
-for file in files {
-    print("Recorded: \(file.lastPathComponent)")
-}
-```
+## 📞 지원
 
-## 🛠️ Development
+- **데모 앱**: `LinkBandDemo` 프로젝트 참조
+- **문서**: 코드 내 주석 및 이 README 참조
+- **예제**: 각 View 파일에서 실제 사용 패턴 확인
 
-### Requirements
-- iOS 13.0+ / macOS 10.15+
-- Xcode 15.0+
-- Swift 6.0+
+---
 
-### Building
-```bash
-# Clone the repository
-git clone <repository-url>
-cd IOS_link_band_demo_app
-
-# Open in Xcode
-open LinkBandDemo.xcodeproj
-
-# Or build via command line
-xcodebuild -project LinkBandDemo.xcodeproj -scheme LinkBandDemo build
-```
-
-## 📚 Examples
-
-Check the `LinkBandDemo` app for complete implementation examples:
-- Real-time sensor data visualization
-- Connection management UI
-- Data recording and playback
-- Custom sensor configurations
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Make changes to the **BluetoothKit SDK only** (no UI dependencies)
-4. Add tests for new functionality
-5. Submit a pull request
-
-## 📄 License
-
-[Your License Here] 
+**Happy Coding! 🎉** 
