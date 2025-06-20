@@ -1,8 +1,11 @@
 import SwiftUI
-import BluetoothKit
+
+// EEGData 타입은 BluetoothKitViewModel에 정의되어 있습니다
+// 현재 프로젝트 구조에서는 같은 모듈이므로 import가 필요하지 않아야 하는데
+// View와 ViewModel이 다른 타겟에 있을 수 있으므로 확인이 필요합니다
 
 struct EEGDataCard: View {
-    let reading: EEGReading
+    let reading: EEGData
     
     var body: some View {
         VStack(spacing: 8) {
@@ -67,5 +70,5 @@ struct EEGDataCard: View {
 }
 
 #Preview {
-    EEGDataCard(reading: EEGReading(channel1: 125.5, channel2: -88.2, ch1Raw: 5000, ch2Raw: -3500, leadOff: false))
+    EEGDataCard(reading: EEGData(channel1: 125.5, channel2: -88.2, ch1Raw: 5000, ch2Raw: -3500, leadOff: false, timestamp: Date()))
 } 

@@ -1,5 +1,4 @@
 import SwiftUI
-import BluetoothKit
 
 // MARK: - Enhanced Status Card View
 
@@ -150,7 +149,7 @@ struct EnhancedStatusCardView: View {
         }
     }
     
-    private func deviceRow(for device: BluetoothDevice) -> some View {
+    private func deviceRow(for device: DeviceInfo) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(device.name)

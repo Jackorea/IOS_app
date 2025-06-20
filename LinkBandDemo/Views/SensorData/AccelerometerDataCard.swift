@@ -1,8 +1,7 @@
 import SwiftUI
-import BluetoothKit
 
 struct AccelerometerDataCard: View {
-    let reading: AccelerometerReading
+    let reading: AccelerometerData
     @ObservedObject var bluetoothKit: BluetoothKitViewModel
     
     var body: some View {
@@ -123,7 +122,7 @@ struct AccelerometerDataCard: View {
 
 #Preview {
     AccelerometerDataCard(
-        reading: AccelerometerReading(x: 1234, y: -567, z: 890),
+        reading: AccelerometerData(x: 1234, y: -567, z: 890, timestamp: Date()),
         bluetoothKit: BluetoothKitViewModel()
     )
 } 

@@ -1,5 +1,4 @@
 import SwiftUI
-import BluetoothKit
 
 // MARK: - Simplified Batch Data Collection View
 
@@ -11,16 +10,16 @@ struct SimplifiedBatchDataCollectionView: View {
     @State private var showStopMonitoringAlert = false
     
     // 개별 텍스트 필드 포커스 상태 추적
-    @FocusState private var focusedSampleCountField: SensorType?
-    @FocusState private var focusedSecondsField: SensorType?
-    @FocusState private var focusedMinutesField: SensorType?
+    @FocusState private var focusedSampleCountField: SensorKind?
+    @FocusState private var focusedSecondsField: SensorKind?
+    @FocusState private var focusedMinutesField: SensorKind?
     
     // 주로 사용하는 센서들
-    private let mainSensors: [SensorType] = [.eeg, .ppg, .accelerometer]
+    private let mainSensors: [SensorKind] = [.eeg, .ppg, .accelerometer]
     
     init(bluetoothKit: BluetoothKitViewModel) {
         self.bluetoothKit = bluetoothKit
-        self._viewModel = StateObject(wrappedValue: BatchDataConfigurationViewModel(bluetoothKit: bluetoothKit.sdkInstance))
+        self._viewModel = StateObject(wrappedValue: bluetoothKit.createBatchDataConfigurationViewModel())
     }
     
     var body: some View {
@@ -145,14 +144,14 @@ struct SimplifiedBatchDataCollectionView: View {
                 .foregroundColor(.secondary)
             
             Picker("수집 모드", selection: $viewModel.selectedCollectionMode) {
-                ForEach(BatchDataConfigurationManager.CollectionMode.allCases, id: \.self) { mode in
+                ForEach(CollectionModeKind.allCases, id: \.self) { mode in
                     Text(mode.displayName).tag(mode)
                 }
             }
             .pickerStyle(SegmentedPickerStyle())
             .disabled(viewModel.isMonitoringActive)
             .onChange(of: viewModel.selectedCollectionMode) { newMode in
-                // 모드가 변경되면 BatchDataConfigurationManager에 전달
+                // 모드가 변경되면 ViewModel에 전달
                 viewModel.updateCollectionMode(newMode)
             }
         }
@@ -228,7 +227,7 @@ struct SimplifiedBatchDataCollectionView: View {
         }
     }
     
-    private func sensorSampleCountRow(for sensor: SensorType) -> some View {
+    private func sensorSampleCountRow(for sensor: SensorKind) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("\(sensor.emoji) \(sensor.displayName)")
                 .font(.subheadline)
@@ -265,7 +264,7 @@ struct SimplifiedBatchDataCollectionView: View {
         }
     }
     
-    private func sensorSecondsRow(for sensor: SensorType) -> some View {
+    private func sensorSecondsRow(for sensor: SensorKind) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("\(sensor.emoji) \(sensor.displayName)")
                 .font(.subheadline)
@@ -302,7 +301,7 @@ struct SimplifiedBatchDataCollectionView: View {
         }
     }
     
-    private func sensorMinutesRow(for sensor: SensorType) -> some View {
+    private func sensorMinutesRow(for sensor: SensorKind) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("\(sensor.emoji) \(sensor.displayName)")
                 .font(.subheadline)
@@ -437,7 +436,7 @@ struct SimplifiedBatchDataCollectionView: View {
     
     // MARK: - Helper Methods
     
-    private func colorForSensor(_ sensor: SensorType) -> Color {
+    private func colorForSensor(_ sensor: SensorKind) -> Color {
         switch sensor.color {
         case "blue": return .blue
         case "red": return .red
@@ -448,7 +447,7 @@ struct SimplifiedBatchDataCollectionView: View {
     }
     
     /// ViewModel의 기본값을 사용하여 중복 제거
-    private func defaultSampleCount(for sensor: SensorType) -> Int {
+    private func defaultSampleCount(for sensor: SensorKind) -> Int {
         switch sensor {
         case .eeg:
             return 250
@@ -462,7 +461,7 @@ struct SimplifiedBatchDataCollectionView: View {
     }
     
     /// Generic한 바인딩을 생성하여 switch문 중복 제거
-    private func sampleCountBinding(for sensor: SensorType) -> Binding<String> {
+    private func sampleCountBinding(for sensor: SensorKind) -> Binding<String> {
         return Binding<String>(
             get: { 
                 self.viewModel.getSampleCountText(for: sensor)
@@ -474,7 +473,7 @@ struct SimplifiedBatchDataCollectionView: View {
     }
     
     /// Generic한 바인딩을 생성하여 switch문 중복 제거
-    private func durationBinding(for sensor: SensorType) -> Binding<String> {
+    private func durationBinding(for sensor: SensorKind) -> Binding<String> {
         return Binding<String>(
             get: { 
                 self.viewModel.getSecondsText(for: sensor)
@@ -486,7 +485,7 @@ struct SimplifiedBatchDataCollectionView: View {
     }
     
     /// 분단위 바인딩을 생성합니다.
-    private func minutesBinding(for sensor: SensorType) -> Binding<String> {
+    private func minutesBinding(for sensor: SensorKind) -> Binding<String> {
         return Binding<String>(
             get: { 
                 self.viewModel.getMinutesText(for: sensor)
@@ -498,7 +497,7 @@ struct SimplifiedBatchDataCollectionView: View {
     }
     
     /// 샘플 수 실시간 검증 및 자동 복원
-    private func validateAndFixSampleCount(_ newValue: String, for sensor: SensorType) {
+    private func validateAndFixSampleCount(_ newValue: String, for sensor: SensorKind) {
         let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // 빈 값이면 즉시 기본값으로 복원
@@ -533,7 +532,7 @@ struct SimplifiedBatchDataCollectionView: View {
     }
     
     /// 시간(초) 실시간 검증 및 자동 복원
-    private func validateAndFixSeconds(_ newValue: String, for sensor: SensorType) {
+    private func validateAndFixSeconds(_ newValue: String, for sensor: SensorKind) {
         let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // 빈 값이면 즉시 기본값으로 복원
@@ -568,7 +567,7 @@ struct SimplifiedBatchDataCollectionView: View {
     }
     
     /// 분 실시간 검증 및 자동 복원
-    private func validateAndFixMinutes(_ newValue: String, for sensor: SensorType) {
+    private func validateAndFixMinutes(_ newValue: String, for sensor: SensorKind) {
         let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // 빈 값이면 즉시 기본값으로 복원
@@ -622,7 +621,7 @@ struct SimplifiedBatchDataCollectionView: View {
         }
     }
     
-    private func toggleSensorSelection(_ sensor: SensorType) {
+    private func toggleSensorSelection(_ sensor: SensorKind) {
         // 모니터링 중이 아닐 때만 센서 선택 변경 가능
         guard !viewModel.isMonitoringActive else { return }
         
@@ -663,7 +662,7 @@ struct SimplifiedBatchDataCollectionView: View {
 // MARK: - Helper Views
 
 private struct SensorToggleButton: View {
-    let sensor: SensorType
+    let sensor: SensorKind
     let isSelected: Bool
     let isDisabled: Bool
     let action: () -> Void

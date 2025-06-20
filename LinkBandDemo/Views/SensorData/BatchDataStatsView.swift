@@ -1,5 +1,5 @@
 import SwiftUI
-import BluetoothKit
+// BluetoothKitViewModel import 추가 - 어댑터 사용
 
 // MARK: - Batch Data Statistics View
 

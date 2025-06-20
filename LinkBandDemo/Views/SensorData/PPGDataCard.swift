@@ -1,8 +1,7 @@
 import SwiftUI
-import BluetoothKit
 
 struct PPGDataCard: View {
-    let reading: PPGReading
+    let reading: PPGData
     
     var body: some View {
         VStack(spacing: 8) {
@@ -54,5 +53,5 @@ struct PPGDataCard: View {
 }
 
 #Preview {
-    PPGDataCard(reading: PPGReading(red: 65432, ir: 78901))
+    PPGDataCard(reading: PPGData(red: 65432, ir: 78901, timestamp: Date()))
 } 

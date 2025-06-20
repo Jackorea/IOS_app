@@ -1,5 +1,4 @@
 import SwiftUI
-import BluetoothKit
 
 // MARK: - 기록 컨트롤
 

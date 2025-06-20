@@ -1,10 +1,9 @@
 import SwiftUI
-import BluetoothKit
 
 // MARK: - Battery Data Card
 
 struct BatteryDataCard: View {
-    let reading: BatteryReading
+    let reading: BatteryData
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -60,5 +59,5 @@ struct BatteryDataCard: View {
 }
 
 #Preview {
-    BatteryDataCard(reading: BatteryReading(level: 75))
+    BatteryDataCard(reading: BatteryData(level: 75, timestamp: Date()))
 } 
