@@ -3,7 +3,11 @@ import BluetoothKit
 import Combine
 
 // MARK: - SDK 변환 확장 (internal 사용)
+
+/// EEGData와 SDK EEGReading 간의 변환을 담당하는 내부 확장
 internal extension EEGData {
+    /// SDK의 EEGReading을 EEGData로 변환하는 이니셜라이저
+    /// - Parameter reading: 변환할 SDK EEGReading 객체
     init(from reading: EEGReading) {
         self.init(
             channel1: reading.channel1,
@@ -16,7 +20,10 @@ internal extension EEGData {
     }
 }
 
+/// PPGData와 SDK PPGReading 간의 변환을 담당하는 내부 확장
 internal extension PPGData {
+    /// SDK의 PPGReading을 PPGData로 변환하는 이니셜라이저
+    /// - Parameter reading: 변환할 SDK PPGReading 객체
     init(from reading: PPGReading) {
         self.init(
             red: Int(reading.red),
@@ -26,7 +33,10 @@ internal extension PPGData {
     }
 }
 
+/// AccelerometerData와 SDK AccelerometerReading 간의 변환을 담당하는 내부 확장
 internal extension AccelerometerData {
+    /// SDK의 AccelerometerReading을 AccelerometerData로 변환하는 이니셜라이저
+    /// - Parameter reading: 변환할 SDK AccelerometerReading 객체
     init(from reading: AccelerometerReading) {
         self.init(
             x: Int(reading.x),
@@ -37,7 +47,10 @@ internal extension AccelerometerData {
     }
 }
 
+/// BatteryData와 SDK BatteryReading 간의 변환을 담당하는 내부 확장
 internal extension BatteryData {
+    /// SDK의 BatteryReading을 BatteryData로 변환하는 이니셜라이저
+    /// - Parameter reading: 변환할 SDK BatteryReading 객체
     init(from reading: BatteryReading) {
         self.init(
             level: Int(reading.level),
@@ -46,7 +59,11 @@ internal extension BatteryData {
     }
 }
 
+/// DeviceInfo와 SDK BluetoothDevice 간의 변환을 담당하는 내부 확장
 internal extension DeviceInfo {
+    /// SDK의 BluetoothDevice를 DeviceInfo로 변환하는 이니셜라이저
+    /// - Parameter device: 변환할 SDK BluetoothDevice 객체
+    /// - Note: 현재는 임시 UUID를 생성하며, SDK에서 proper identifier 제공이 필요합니다.
     init(from device: BluetoothDevice) {
         // peripheral.identifier에 접근할 수 없으므로 name을 UUID로 사용
         // 실제로는 BluetoothKit에서 proper UUID를 제공해야 함
@@ -57,7 +74,9 @@ internal extension DeviceInfo {
     }
 }
 
+/// SensorKind와 SDK SensorType 간의 변환을 담당하는 내부 확장
 internal extension SensorKind {
+    /// SensorKind를 SDK SensorType으로 변환하는 계산 프로퍼티
     var sdkType: SensorType {
         switch self {
         case .eeg: return .eeg
@@ -67,6 +86,9 @@ internal extension SensorKind {
         }
     }
     
+    /// SDK SensorType을 SensorKind로 변환하는 정적 메서드
+    /// - Parameter sdkType: 변환할 SDK SensorType
+    /// - Returns: 해당하는 SensorKind 값
     static func from(_ sdkType: SensorType) -> SensorKind {
         switch sdkType {
         case .eeg: return .eeg
@@ -77,7 +99,9 @@ internal extension SensorKind {
     }
 }
 
+/// DeviceConnectionState와 SDK ConnectionState 간의 변환을 담당하는 내부 확장
 internal extension DeviceConnectionState {
+    /// DeviceConnectionState를 SDK ConnectionState로 변환하는 계산 프로퍼티
     var sdkState: ConnectionState {
         switch self {
         case .disconnected: return .disconnected
@@ -89,6 +113,9 @@ internal extension DeviceConnectionState {
         }
     }
     
+    /// SDK ConnectionState를 DeviceConnectionState로 변환하는 정적 메서드
+    /// - Parameter sdkState: 변환할 SDK ConnectionState
+    /// - Returns: 해당하는 DeviceConnectionState 값
     static func from(_ sdkState: ConnectionState) -> DeviceConnectionState {
         switch sdkState {
         case .disconnected: return .disconnected
@@ -101,7 +128,9 @@ internal extension DeviceConnectionState {
     }
 }
 
+/// AccelMode와 SDK AccelerometerMode 간의 변환을 담당하는 내부 확장
 internal extension AccelMode {
+    /// AccelMode를 SDK AccelerometerMode로 변환하는 계산 프로퍼티
     var sdkMode: AccelerometerMode {
         switch self {
         case .raw: return .raw
@@ -109,6 +138,9 @@ internal extension AccelMode {
         }
     }
     
+    /// SDK AccelerometerMode를 AccelMode로 변환하는 정적 메서드
+    /// - Parameter sdkMode: 변환할 SDK AccelerometerMode
+    /// - Returns: 해당하는 AccelMode 값
     static func from(_ sdkMode: AccelerometerMode) -> AccelMode {
         switch sdkMode {
         case .raw: return .raw
@@ -117,7 +149,9 @@ internal extension AccelMode {
     }
 }
 
+/// CollectionModeKind와 SDK BatchDataConfigurationManager.CollectionMode 간의 변환을 담당하는 내부 확장
 internal extension CollectionModeKind {
+    /// CollectionModeKind를 SDK CollectionMode로 변환하는 계산 프로퍼티
     var sdkMode: BatchDataConfigurationManager.CollectionMode {
         switch self {
         case .sampleCount: return .sampleCount
@@ -126,6 +160,9 @@ internal extension CollectionModeKind {
         }
     }
     
+    /// SDK CollectionMode를 CollectionModeKind로 변환하는 정적 메서드
+    /// - Parameter sdkMode: 변환할 SDK CollectionMode
+    /// - Returns: 해당하는 CollectionModeKind 값
     static func from(_ sdkMode: BatchDataConfigurationManager.CollectionMode) -> CollectionModeKind {
         switch sdkMode {
         case .sampleCount: return .sampleCount
@@ -241,16 +278,19 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     }
     
     /// 기록이 저장되는 디렉토리를 가져옵니다.
+    /// - Returns: 기록 파일들이 저장되는 URL 경로
     public var recordingsDirectory: URL {
         return bluetoothKit.recordingsDirectory
     }
     
     /// 현재 디바이스에 연결되어 있는지 확인합니다.
+    /// - Returns: 연결 상태 (true: 연결됨, false: 연결되지 않음)
     public var isConnected: Bool {
         return bluetoothKit.isConnected
     }
     
     /// 자동 재연결 기능을 설정합니다.
+    /// - Parameter enabled: 자동 재연결 활성화 여부
     public func setAutoReconnect(enabled: Bool) {
         try? bluetoothKit.setAutoReconnect(enabled: enabled)
     }
@@ -258,16 +298,23 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     // MARK: - Batch Data Collection Methods
     
     /// 시간 간격을 기준으로 배치 데이터 수집을 설정합니다.
+    /// - Parameters:
+    ///   - timeInterval: 수집 시간 간격
+    ///   - sensorType: 대상 센서 타입
     public func setDataCollection(timeInterval: TimeInterval, for sensorType: SensorKind) {
         try? bluetoothKit.setDataCollection(timeInterval: timeInterval, for: sensorType.sdkType)
     }
     
     /// 샘플 개수를 기준으로 배치 데이터 수집을 설정합니다.
+    /// - Parameters:
+    ///   - sampleCount: 수집할 샘플 개수
+    ///   - sensorType: 대상 센서 타입
     public func setDataCollection(sampleCount: Int, for sensorType: SensorKind) {
         try? bluetoothKit.setDataCollection(sampleCount: sampleCount, for: sensorType.sdkType)
     }
     
     /// 특정 센서의 배치 데이터 수집을 비활성화합니다.
+    /// - Parameter sensorType: 비활성화할 센서 타입
     public func disableDataCollection(for sensorType: SensorKind) {
         try? bluetoothKit.disableDataCollection(for: sensorType.sdkType)
     }
@@ -278,6 +325,7 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     }
     
     /// 기록 중에 선택된 센서를 업데이트합니다.
+    /// - Parameter selectedSensors: 기록할 센서들의 집합
     public func updateRecordingSensors(_ selectedSensors: Set<SensorKind>) {
         let sdkSensors = Set(selectedSensors.map { $0.sdkType })
         try? bluetoothKit.updateRecordingSensors(sdkSensors)
@@ -286,81 +334,37 @@ class BluetoothKitViewModel: ObservableObject, BluetoothKitDelegate {
     // MARK: - Sensor Monitoring Control
     
     /// 센서 모니터링을 활성화합니다.
+    /// - Note: 일반적인 실시간 모니터링을 시작합니다.
     public func enableMonitoring() {
         try? bluetoothKit.enableMonitoring()
     }
     
     /// 센서 모니터링을 비활성화합니다.
+    /// - Note: 실시간 모니터링을 중지합니다.
     public func disableMonitoring() {
         try? bluetoothKit.disableMonitoring()
     }
     
     /// 모니터링할 센서 타입을 설정합니다.
+    /// - Parameter sensors: 모니터링할 센서들의 집합
     public func setSelectedSensors(_ sensors: Set<SensorKind>) {
         let sdkSensors = Set(sensors.map { $0.sdkType })
         try? bluetoothKit.setSelectedSensors(sdkSensors)
     }
     
     /// 현재 모니터링 중인 센서 타입들을 반환합니다.
+    /// - Returns: 현재 선택된 센서들의 집합
     public var selectedSensorTypes: Set<SensorKind> {
         return Set(bluetoothKit.selectedSensorTypes.map { SensorKind.from($0) })
     }
     
-    // MARK: - BatchDataConfigurationViewModel 지원 메서드들
+    // MARK: - BatchDataConfigurationViewModel Factory
     
     /// BatchDataConfigurationViewModel을 생성합니다 (SDK 인스턴스 직접 노출 없이)
+    /// - Returns: 새로운 BatchDataConfigurationViewModel 인스턴스
+    /// - Note: 팩토리 패턴을 사용하여 SDK 인스턴스를 안전하게 전달합니다.
     public func createBatchDataConfigurationViewModel() -> BatchDataConfigurationViewModel {
         return BatchDataConfigurationViewModel(bluetoothKit: bluetoothKit)
-    }
-    
-    // MARK: - SensorKind 어댑터 메서드들 (BatchDataConfigurationViewModel 지원)
-    
-    /// SensorKind를 위한 샘플 수 텍스트 가져오기
-    public func getSampleCountText(for sensor: SensorKind) -> String {
-        return bluetoothKit.getBatchSampleCountText(for: sensor.sdkType)
-    }
-    
-    /// SensorKind를 위한 샘플 수 텍스트 설정
-    public func setSampleCountText(_ text: String, for sensor: SensorKind) {
-        bluetoothKit.setBatchSampleCountText(text, for: sensor.sdkType)
-    }
-    
-    /// SensorKind를 위한 초 단위 텍스트 가져오기
-    public func getSecondsText(for sensor: SensorKind) -> String {
-        return bluetoothKit.getBatchSecondsText(for: sensor.sdkType)
-    }
-    
-    /// SensorKind를 위한 초 단위 텍스트 설정
-    public func setSecondsText(_ text: String, for sensor: SensorKind) {
-        bluetoothKit.setBatchSecondsText(text, for: sensor.sdkType)
-    }
-    
-    /// SensorKind를 위한 분 단위 텍스트 가져오기
-    public func getMinutesText(for sensor: SensorKind) -> String {
-        return bluetoothKit.getBatchMinutesText(for: sensor.sdkType)
-    }
-    
-    /// SensorKind를 위한 분 단위 텍스트 설정
-    public func setMinutesText(_ text: String, for sensor: SensorKind) {
-        bluetoothKit.setBatchMinutesText(text, for: sensor.sdkType)
-    }
-    
-    /// SensorKind를 위한 샘플 수 검증
-    public func validateSampleCount(_ text: String, for sensor: SensorKind) -> Bool {
-        let result = bluetoothKit.validateBatchSampleCount(text, for: sensor.sdkType)
-        return result.isValid
-    }
-    
-    /// SensorKind를 위한 초 단위 검증
-    public func validateSeconds(_ text: String, for sensor: SensorKind) -> Bool {
-        let result = bluetoothKit.validateBatchSeconds(text, for: sensor.sdkType)
-        return result.isValid
-    }
-    
-    /// SensorKind를 위한 분 단위 검증
-    public func validateMinutes(_ text: String, for sensor: SensorKind) -> Bool {
-        let result = bluetoothKit.validateBatchMinutes(text, for: sensor.sdkType)
-        return result.isValid
     }
     
     // MARK: - Private Methods
