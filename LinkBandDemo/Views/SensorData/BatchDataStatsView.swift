@@ -43,7 +43,7 @@ struct BatchDataStatsView: View {
                     }
                     
                     if bluetoothKit.latestAccelerometerReading != nil {
-                        sensorStatCard(for: "가속도계", icon: "move.3d", color: .blue)
+                        sensorStatCard(for: "ACC", icon: "move.3d", color: .blue)
                     }
                     
                     if bluetoothKit.latestBatteryReading != nil {
@@ -153,7 +153,7 @@ struct BatchDataStatsView: View {
                 }
             }
             
-        case "가속도계":
+        case "ACC":
             if let accel = bluetoothKit.latestAccelerometerReading {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
                     StatItem(title: "X", value: "\(accel.x)", color: color)

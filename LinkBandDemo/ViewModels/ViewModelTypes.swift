@@ -78,7 +78,7 @@ public struct DeviceInfo {
 public enum SensorKind: String, CaseIterable {
     case eeg = "EEG"
     case ppg = "PPG"
-    case accelerometer = "가속도계"
+    case accelerometer = "ACC"
     case battery = "배터리"
     
     public var displayName: String { rawValue }

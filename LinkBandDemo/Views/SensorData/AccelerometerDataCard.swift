@@ -12,7 +12,7 @@ struct AccelerometerDataCard: View {
                     Image(systemName: "move.3d")
                         .foregroundColor(.blue)
                         .font(.title2)
-                    Text("가속도계")
+                    Text("ACC")
                         .font(.headline)
                         .foregroundColor(.blue)
                     Spacer()
