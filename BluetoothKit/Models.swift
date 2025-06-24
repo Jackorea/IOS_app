@@ -419,7 +419,7 @@ internal struct SensorConfiguration: Sendable {
     internal let ppgSampleRate: Double = 50.0
     
     /// 가속도계 샘플링 레이트 (Hz) - 고정값
-    internal let accelerometerSampleRate: Double = 30.0
+    internal let accelerometerSampleRate: Double = 25.0
     
     // MARK: - Hardware Parameters (Fixed Values)
     
@@ -766,7 +766,7 @@ public enum SensorType: String, CaseIterable, Sendable {
         switch self {
         case .eeg: return 250.0
         case .ppg: return 50.0
-        case .accelerometer: return 30.0
+        case .accelerometer: return 25.0
         case .battery: return 1.0 / 60.0  // 1분마다
         }
     }

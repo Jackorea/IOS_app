@@ -454,7 +454,7 @@ struct SimplifiedBatchDataCollectionView: View {
         case .ppg:
             return 50
         case .accelerometer:
-            return 30
+            return 25
         case .battery:
             return 1
         }

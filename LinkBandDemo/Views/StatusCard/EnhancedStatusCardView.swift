@@ -46,7 +46,7 @@ struct EnhancedStatusCardView: View {
                         Text("EEG 50Hz")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text("ACC 30Hz")
+                        Text("ACC 25Hz")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

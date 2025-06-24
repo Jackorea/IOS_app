@@ -7,7 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		49B024AA2E0535E5009A5BA6 /* BluetoothKit in Frameworks */ = {isa = PBXBuildFile; productRef = 49B024A92E0535E5009A5BA6 /* BluetoothKit */; };
+		4922A2DE2E093D6100D90BA8 /* ViewModelsDocumentation.docc in Sources */ = {isa = PBXBuildFile; fileRef = 4922A2DD2E093D6100D90BA8 /* ViewModelsDocumentation.docc */; };
+		4922A3622E0A784B00D90BA8 /* BluetoothKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4922A3612E0A784B00D90BA8 /* BluetoothKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,6 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4922A2DD2E093D6100D90BA8 /* ViewModelsDocumentation.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = ViewModelsDocumentation.docc; sourceTree = "<group>"; };
 		492F1F342DDB33FD00F2D26E /* LinkBandDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LinkBandDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		492F1F412DDB33FF00F2D26E /* LinkBandDemoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LinkBandDemoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		492F1F4B2DDB33FF00F2D26E /* LinkBandDemoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LinkBandDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -56,7 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				49B024AA2E0535E5009A5BA6 /* BluetoothKit in Frameworks */,
+				4922A3622E0A784B00D90BA8 /* BluetoothKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,6 +82,7 @@
 		492F1F2B2DDB33FD00F2D26E = {
 			isa = PBXGroup;
 			children = (
+				4922A2DD2E093D6100D90BA8 /* ViewModelsDocumentation.docc */,
 				492F1F362DDB33FD00F2D26E /* LinkBandDemo */,
 				492F1F442DDB33FF00F2D26E /* LinkBandDemoTests */,
 				492F1F4E2DDB33FF00F2D26E /* LinkBandDemoUITests */,
@@ -124,7 +127,7 @@
 			);
 			name = LinkBandDemo;
 			packageProductDependencies = (
-				49B024A92E0535E5009A5BA6 /* BluetoothKit */,
+				4922A3612E0A784B00D90BA8 /* BluetoothKit */,
 			);
 			productName = personal;
 			productReference = 492F1F342DDB33FD00F2D26E /* LinkBandDemo.app */;
@@ -209,7 +212,7 @@
 			mainGroup = 492F1F2B2DDB33FD00F2D26E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				49B024A82E0535C8009A5BA6 /* XCRemoteSwiftPackageReference "test_spm" */,
+				4922A3602E0A783B00D90BA8 /* XCRemoteSwiftPackageReference "SDK-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 492F1F352DDB33FD00F2D26E /* Products */;
@@ -245,6 +248,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4922A2DE2E093D6100D90BA8 /* ViewModelsDocumentation.docc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -573,20 +577,20 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		49B024A82E0535C8009A5BA6 /* XCRemoteSwiftPackageReference "test_spm" */ = {
+		4922A3602E0A783B00D90BA8 /* XCRemoteSwiftPackageReference "SDK-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Jackorea/test_spm.git";
+			repositoryURL = "https://github.com/LooxidLabs/SDK-iOS.git";
 			requirement = {
-				branch = main;
+				branch = develop;
 				kind = branch;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		49B024A92E0535E5009A5BA6 /* BluetoothKit */ = {
+		4922A3612E0A784B00D90BA8 /* BluetoothKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 49B024A82E0535C8009A5BA6 /* XCRemoteSwiftPackageReference "test_spm" */;
+			package = 4922A3602E0A783B00D90BA8 /* XCRemoteSwiftPackageReference "SDK-iOS" */;
 			productName = BluetoothKit;
 		};
 /* End XCSwiftPackageProductDependency section */

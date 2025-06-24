@@ -1,13 +1,13 @@
 {
-  "originHash" : "63eaa0527fca73830bd3fb517719fee48a3dd0e18117f2213135216d8b28de67",
+  "originHash" : "f74d28cdb7e72ec9f4e6fcde906af7f34f3c5241e557005fcbc48bc7489267bb",
   "pins" : [
     {
-      "identity" : "test_spm",
+      "identity" : "sdk-ios",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Jackorea/test_spm.git",
+      "location" : "https://github.com/LooxidLabs/SDK-iOS.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "0b80229cb7244d9325c0e0ef2fad97ab7e3c3351"
+        "branch" : "develop",
+        "revision" : "dd145cb278b6152848ae422c58a27e766c88bb8a"
       }
     }
   ],
